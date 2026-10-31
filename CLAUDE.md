@@ -4,47 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**No code exists yet.** This repository currently contains only the requirements baseline:
+**Backend skeleton is scaffolded and buildable; zero business logic yet.** Frontend does not exist yet.
 
 - `REQUIREMENTS.md` — the single source of truth. A consolidated, non-summarized requirements spec compiled from the two source PDFs (`Claims_Module_Candidate_Specification.pdf`, `DICEUS_Fullstack_Technical_Assessment.pdf`). Read this file, not the PDFs, for implementation detail — it reproduces every business rule, data entity, API contract, and constraint verbatim with traceability IDs (`BR-*`, `CC-*`, `FR-*`, `NFR-*`).
-- The two source PDFs, kept for reference only.
+- `wayfinder/map.md` — the backend implementation decision log (local-markdown issue tracker; see `wayfinder/TRACKER.md` for the convention). Resolves the architecture choices `REQUIREMENTS.md` deliberately leaves open. **Check this before making a call `REQUIREMENTS.md` doesn't pin down** — it's likely already decided here, with the full reasoning in `docs/adr/`.
+- `docs/adr/0001`–`0007` — ADRs for the hard-to-reverse backend decisions (claim number generation, reserve balance persistence, repository/Unit-of-Work shape, domain events + outbox, GL posting idempotency, exception-to-status-code mapping, JWT auth strategy). Each is 1–3 paragraphs; read the relevant one before touching that area.
+- Three wayfinder tickets are still open (9, 10, 11 — validation-severity handling, testing-strategy boundaries, correlation-id for background jobs). Check `wayfinder/map.md`'s frontier before assuming those are settled.
 
-Before writing code, re-read `REQUIREMENTS.md` section by section as needed — it is long (25 sections) and organized so each section is self-contained. Do not re-derive requirements from memory across sessions; this doc is authoritative over any prior summary.
+Before writing code, re-read `REQUIREMENTS.md` section by section as needed — it is long (25 sections) and organized so each section is self-contained. Do not re-derive requirements from memory across sessions; `REQUIREMENTS.md` and the wayfinder decision log are authoritative over any prior summary.
 
 This is an enterprise take-home assignment (DICEUS Fullstack Engineer assessment), not a tutorial/learning exercise — treat architectural decisions, validation completeness, and audit/traceability with production-grade rigor, since the evaluation explicitly weights "Engineering Quality & Architecture" at 35% and "Domain & Product Thinking" at 15% (`REQUIREMENTS.md` §22).
 
-## Planned Repository Layout
+## Repository Layout
 
-Monorepo, two top-level directories (not yet created):
+Monorepo:
 
 ```
-/backend/            .NET 9 solution, Clean Architecture, 5 projects:
-  ClaimsModule.Domain           entities, value objects, domain events, enums
-  ClaimsModule.Application      MediatR commands/queries, FluentValidation validators, DTOs, interfaces, AutoMapper profiles
-  ClaimsModule.Infrastructure   Azure Blob / local filesystem storage, Hangfire job definitions
-  ClaimsModule.Persistence      EF Core DbContext, migrations, repositories, Unit of Work
-  ClaimsModule.API              controllers, middleware, startup/config
-/frontend/           Angular 18+ workspace (Angular Material, Reactive Forms)
-docker-compose.yml   local dev: SQL Server + API + frontend (optional per spec, but planned)
+/backend/
+  global.json                      pins SDK to 9.0.200
+  Directory.Build.props            shared TargetFramework/Nullable/LangVersion for every project
+  Directory.Packages.props         central NuGet package version management — add new packages here, never inline a Version= on a PackageReference
+  ClaimsModule.sln
+  src/
+    ClaimsModule.Domain           entities, value objects, domain events, enums — no dependencies
+    ClaimsModule.Application      MediatR commands/queries, FluentValidation validators, DTOs, interfaces, AutoMapper profiles — depends on Domain; owns its own DI registration (ApplicationServiceCollectionExtensions.AddApplication())
+    ClaimsModule.Infrastructure   Azure Blob / local filesystem storage, Hangfire job definitions — depends on Application
+    ClaimsModule.Persistence      EF Core DbContext (ClaimsDbContext, currently no DbSets), migrations, repositories, Unit of Work — depends on Application; owns its own DI registration (PersistenceServiceCollectionExtensions.AddPersistence())
+    ClaimsModule.API              controllers, middleware, startup/config — depends on Application, Infrastructure, Persistence; Program.cs is deliberately thin, wiring via each layer's AddXxx() extension
+  tests/
+    ClaimsModule.UnitTests        xUnit; references Domain + Application. Currently one smoke test proving the DI wiring resolves. More test projects (integration, Testcontainers-backed) are pending wayfinder ticket 10.
+/frontend/           Angular 18+ workspace (not yet created)
+docker-compose.yml   local dev: SQL Server + API + frontend (not yet created)
 ```
 
 Dependency direction is strict Clean Architecture: `API → Application → Domain`, with `Infrastructure`/`Persistence` implementing interfaces defined in `Application`/`Domain`. Nothing in `Domain` or `Application` may reference EF Core, Hangfire, or Azure SDK types directly — those live behind interfaces (`IAuditLogService`, `IStorageService`, repository interfaces) implemented in `Persistence`/`Infrastructure`.
 
-## Commands (once scaffolded)
+**Central package management is on** (`ManagePackageVersionsCentrally=true`). Adding a package is `dotnet add <project> package <Name>` as usual — the CLI inserts the version into `Directory.Packages.props` automatically; never add an inline `Version=` to a `PackageReference` in a `.csproj`. EF Core packages must be pinned to the `9.0.x` line explicitly (`--version 9.0.22` or later 9.x) — NuGet's default "latest" resolution will happily grab an EF Core 10.x package that doesn't target `net9.0` and fails to restore. Swashbuckle.AspNetCore is the sole OpenAPI/Swagger package — don't add `Microsoft.AspNetCore.OpenApi` alongside it; the two ship incompatible `Microsoft.OpenApi` model versions and the app throws `TypeLoadException` at startup if both are present.
 
-These are the commands this stack implies (`REQUIREMENTS.md` §17.4) — use them once the solution/workspace exist; update this section with real, verified commands as soon as scaffolding lands.
+## Commands
 
 ```bash
-# Backend (.NET 9 / C# 13)
-cd backend
+# Backend (.NET 9 / C# 13) — run from /backend
 dotnet build
-dotnet test                                   # all tests
-dotnet test --filter "FullyQualifiedName~X"   # single test
-dotnet ef migrations add <Name> -p ClaimsModule.Persistence -s ClaimsModule.API
-dotnet ef database update -p ClaimsModule.Persistence -s ClaimsModule.API
-dotnet run --project ClaimsModule.API         # Swagger/OpenAPI must be reachable
+dotnet test                                                    # all tests
+dotnet test --filter "FullyQualifiedName~ClassOrMethodName"    # single test/class
+dotnet run --project src/ClaimsModule.API                      # Swagger UI at /swagger/index.html — must stay reachable outside Development too (§20.3)
 
-# Frontend (Angular 18+)
+# EF Core migrations — not usable yet, ClaimsDbContext has no DbSets until entities exist
+dotnet ef migrations add <Name> -p src/ClaimsModule.Persistence -s src/ClaimsModule.API
+dotnet ef database update -p src/ClaimsModule.Persistence -s src/ClaimsModule.API
+
+# Frontend (Angular 18+) — not yet scaffolded
 cd frontend
 npm install
 ng serve

@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ClaimsModule.Application\ClaimsModule.Application.csproj" />
+  </ItemGroup>
+
+</Project>

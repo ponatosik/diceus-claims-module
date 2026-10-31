@@ -26,12 +26,12 @@ A **complete decision log** for the backend's architecture/implementation choice
 - [JWT validation strategy and fake issuer choice](tickets/007-jwt-auth-strategy.md): real `AddJwtBearer` validation against a self-hosted, test-only token issuer; issuer/keys fully configuration-driven — see [ADR-0007](../docs/adr/0007-jwt-auth-self-hosted-test-issuer.md)
 - [CorrelationId source for in-request audit entries](tickets/008-correlation-id-source.md): sourced from OpenTelemetry's `Activity.Current` trace id; exporter/collector config deferred as a deployment concern
 - [Validation-severity pipeline handling and non-field-keyed business-rule error shape](tickets/009-validation-severity-and-business-rule-error-shape.md): new `POST /api/claims/validate` query endpoint; generic severity-aware `ValidationBehavior` (blocks only on `Severity.Error`); handlers write `VALIDATION_ISSUE_ADDED` for attached warnings; `422` body gets a second `blockingConditions` array (structured `{code, message}`) for non-field business-rule failures — see [ADR-0008](../docs/adr/0008-validation-severity-and-business-rule-error-shape.md)
+- [Testing strategy: project layout, unit/integration boundaries, Testcontainers images](tickets/010-testing-strategy-boundaries.md): three test projects by cost tier (UnitTests, PersistenceTests, ApiIntegrationTests); one SQL Server container (2 DBs) + one Azurite container per assembly; Respawn for isolation; automated Clean Architecture fitness test — see [ADR-0009](../docs/adr/0009-testing-strategy.md)
 
 ## Not yet specified
 
 - AutoMapper profile organization (one profile per aggregate vs. per feature) — too minor to ticket yet; will likely just get decided inline during implementation rather than needing its own decision ticket.
 - Hangfire recurring-job registration/startup wiring specifics (where `RecurringJob.AddOrUpdate` calls live, how local dev wires the separate Hangfire connection string) — small enough that it may not need a ticket; revisit if it turns out thornier than expected once ticket 4's outbox dispatcher is designed in detail.
-- Whatever smaller decisions ticket 10 (testing strategy) surfaces once resolved.
 
 ## Out of scope
 

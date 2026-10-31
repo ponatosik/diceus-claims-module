@@ -1,0 +1,18 @@
+# IDE
+.idea/
+.vs/
+.vscode/
+
+# .NET (backend, once scaffolded)
+bin/
+obj/
+*.user
+
+# Node / Angular (frontend, once scaffolded)
+node_modules/
+dist/
+.angular/
+
+# Local env / secrets
+*.env
+appsettings.*.local.json

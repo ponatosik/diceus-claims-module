@@ -1,7 +1,7 @@
 ---
 title: "Slice A: Domain & Persistence Foundation"
 labels: ["ready-for-agent"]
-status: open
+status: implemented
 ---
 
 ## Problem Statement

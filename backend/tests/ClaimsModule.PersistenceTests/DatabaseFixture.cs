@@ -1,4 +1,6 @@
+using ClaimsModule.Persistence;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Respawn;
 using Testcontainers.MsSql;
 
@@ -20,6 +22,10 @@ public class DatabaseFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
+
+        var options = new DbContextOptionsBuilder<ClaimsDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var dbContext = new ClaimsDbContext(options);
+        await dbContext.Database.MigrateAsync();
     }
 
     public async Task ResetAsync()
@@ -32,6 +38,9 @@ public class DatabaseFixture : IAsyncLifetime
             _respawner = await Respawner.CreateAsync(_respawnConnection, new RespawnerOptions
             {
                 DbAdapter = DbAdapter.SqlServer,
+                // Migration-seeded reference data (§16.4) must survive a reset — only transactional/business
+                // data created by a test should be cleared.
+                TablesToIgnore = [new Respawn.Graph.Table("CauseOfLossCodes"), new Respawn.Graph.Table("Policies")],
             });
         }
 

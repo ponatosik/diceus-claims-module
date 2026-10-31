@@ -2,8 +2,8 @@
 id: 9
 title: "Validation-severity pipeline handling and non-field-keyed business-rule error shape"
 labels: ["wayfinder:grilling"]
-status: open
-assignee: null
+status: closed
+assignee: agent
 parent: 0
 blocked_by: []
 ---
@@ -18,3 +18,16 @@ Two related open questions about the validation/error pipeline that ADR-0006 (ex
 ## Notes
 
 Related to [ticket 6 (closed)](006-exception-status-code-mapping.md) and [ADR-0006](../../docs/adr/0006-exception-to-status-code-mapping.md), which settled *which* exceptions get 422 but not the internal shape variance within 422 responses.
+
+## Resolution
+
+Resolved via a grilling session (6 questions across 2 rounds). Summary:
+
+1. Added `POST /api/claims/validate` — a MediatR `Query`, shares `CreateClaimCommandValidator`, always `200`, returns every Critical + Warning issue, fills the FRS §5.4 prose gap.
+2. Severity uses FluentValidation's native `Severity` enum directly (`Error` = Critical, `Warning` = Warning) — no custom enum.
+3. One generic `ValidationBehavior<TRequest, TResponse>` blocks (→ 422, `errors`) only on `Severity.Error`; Warning-severity failures attach to the command via a shared `IHasValidationWarnings` marker interface instead of being audited by the behavior itself.
+4. Handlers (not the pipeline behavior) write `VALIDATION_ISSUE_ADDED` audit entries for attached warnings, after persisting, since creation commands have no `ClaimId` to audit against until then.
+5. The `422` body gets a second array, `blockingConditions` (structured `{code, message}` using existing `BR-*`/`CC-*` rule IDs), for non-field business-rule failures (closure conditions, invalid transitions, self-approval rejection) — feeding §11.3's pre-flight checklist UI.
+6. `errors` comes from FluentValidation via the pipeline behavior; `blockingConditions` comes from handler-thrown domain exceptions caught by the same middleware as ADR-0006.
+
+Full reasoning, rejected alternatives, and the edge-case consequence (two exception types feeding one response shape) in [ADR-0008](../../docs/adr/0008-validation-severity-and-business-rule-error-shape.md).

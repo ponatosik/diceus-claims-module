@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `REQUIREMENTS.md` — the single source of truth. A consolidated, non-summarized requirements spec compiled from the two source PDFs (`Claims_Module_Candidate_Specification.pdf`, `DICEUS_Fullstack_Technical_Assessment.pdf`). Read this file, not the PDFs, for implementation detail — it reproduces every business rule, data entity, API contract, and constraint verbatim with traceability IDs (`BR-*`, `CC-*`, `FR-*`, `NFR-*`).
 - `wayfinder/map.md` — the backend implementation decision log (local-markdown issue tracker; see `wayfinder/TRACKER.md` for the convention). Resolves the architecture choices `REQUIREMENTS.md` deliberately leaves open. **Check this before making a call `REQUIREMENTS.md` doesn't pin down** — it's likely already decided here, with the full reasoning in `docs/adr/`.
-- `docs/adr/0001`–`0007` — ADRs for the hard-to-reverse backend decisions (claim number generation, reserve balance persistence, repository/Unit-of-Work shape, domain events + outbox, GL posting idempotency, exception-to-status-code mapping, JWT auth strategy). Each is 1–3 paragraphs; read the relevant one before touching that area.
-- Three wayfinder tickets are still open (9, 10, 11 — validation-severity handling, testing-strategy boundaries, correlation-id for background jobs). Check `wayfinder/map.md`'s frontier before assuming those are settled.
+- `docs/adr/0001`–`0009` — ADRs for the hard-to-reverse backend decisions (claim number generation, reserve balance persistence, repository/Unit-of-Work shape, domain events + outbox, GL posting idempotency, exception-to-status-code mapping, JWT auth strategy, validation-severity pipeline + business-rule error shape, testing strategy). Each is 1–3 paragraphs; read the relevant one before touching that area.
+- One wayfinder ticket is still open (11 — correlation-id for background/outbox-dispatched audit entries). Check `wayfinder/map.md`'s frontier before assuming it's settled; everything else on the backend decision log is closed.
 
 Before writing code, re-read `REQUIREMENTS.md` section by section as needed — it is long (25 sections) and organized so each section is self-contained. Do not re-derive requirements from memory across sessions; `REQUIREMENTS.md` and the wayfinder decision log are authoritative over any prior summary.
 
@@ -32,21 +32,26 @@ Monorepo:
     ClaimsModule.Persistence      EF Core DbContext (ClaimsDbContext, currently no DbSets), migrations, repositories, Unit of Work — depends on Application; owns its own DI registration (PersistenceServiceCollectionExtensions.AddPersistence())
     ClaimsModule.API              controllers, middleware, startup/config — depends on Application, Infrastructure, Persistence; Program.cs is deliberately thin, wiring via each layer's AddXxx() extension
   tests/
-    ClaimsModule.UnitTests        xUnit; references Domain + Application. Currently one smoke test proving the DI wiring resolves. More test projects (integration, Testcontainers-backed) are pending wayfinder ticket 10.
+    ClaimsModule.UnitTests          xUnit, no I/O, no containers. Domain logic, FluentValidation validators, MediatR handlers with mocked repositories, plus a NetArchTest.Rules architecture-fitness suite (ArchitectureTests.cs) enforcing the dependency rules above at build time.
+    ClaimsModule.PersistenceTests   xUnit + Testcontainers (SQL Server only). EF Core configurations/migrations/query filters — no HTTP, no MediatR. DatabaseFixture is an xUnit collection fixture (one container per assembly run, not per test); DatabaseFixture.ResetAsync() uses Respawn for inter-test isolation.
+    ClaimsModule.ApiIntegrationTests   xUnit + Testcontainers (SQL Server with 2 DBs — main + a Hangfire-store stand-in per ADR-0004 — plus Azurite). ApiFixture extends WebApplicationFactory<Program> against real containers; full HTTP request/response cycles through the real MediatR pipeline. GL posting idempotency tests (once the feature exists) belong here, not a separate project, per ADR-0009.
 /frontend/           Angular 18+ workspace (not yet created)
 docker-compose.yml   local dev: SQL Server + API + frontend (not yet created)
 ```
 
-Dependency direction is strict Clean Architecture: `API → Application → Domain`, with `Infrastructure`/`Persistence` implementing interfaces defined in `Application`/`Domain`. Nothing in `Domain` or `Application` may reference EF Core, Hangfire, or Azure SDK types directly — those live behind interfaces (`IAuditLogService`, `IStorageService`, repository interfaces) implemented in `Persistence`/`Infrastructure`.
+Dependency direction is strict Clean Architecture: `API → Application → Domain`, with `Infrastructure`/`Persistence` implementing interfaces defined in `Application`/`Domain`. Nothing in `Domain` or `Application` may reference EF Core, Hangfire, or Azure SDK types directly — those live behind interfaces (`IAuditLogService`, `IStorageService`, repository interfaces) implemented in `Persistence`/`Infrastructure`. `ClaimsModule.UnitTests/ArchitectureTests.cs` enforces this automatically — a build failure there means a genuine layering violation, not a flaky test.
 
-**Central package management is on** (`ManagePackageVersionsCentrally=true`). Adding a package is `dotnet add <project> package <Name>` as usual — the CLI inserts the version into `Directory.Packages.props` automatically; never add an inline `Version=` to a `PackageReference` in a `.csproj`. EF Core packages must be pinned to the `9.0.x` line explicitly (`--version 9.0.22` or later 9.x) — NuGet's default "latest" resolution will happily grab an EF Core 10.x package that doesn't target `net9.0` and fails to restore. Swashbuckle.AspNetCore is the sole OpenAPI/Swagger package — don't add `Microsoft.AspNetCore.OpenApi` alongside it; the two ship incompatible `Microsoft.OpenApi` model versions and the app throws `TypeLoadException` at startup if both are present.
+**Central package management is on** (`ManagePackageVersionsCentrally=true`). Adding a package is `dotnet add <project> package <Name>` as usual — the CLI inserts the version into `Directory.Packages.props` automatically; never add an inline `Version=` to a `PackageReference` in a `.csproj`. EF Core and other ASP.NET Core shared-framework packages (`Microsoft.AspNetCore.Mvc.Testing`, etc.) must be pinned to the `9.0.x` line explicitly (`--version 9.0.22` or later 9.x) — NuGet's default "latest" resolution will happily grab a .NET 10-only package and fail to restore. Swashbuckle.AspNetCore is the sole OpenAPI/Swagger package — don't add `Microsoft.AspNetCore.OpenApi` alongside it; the two ship incompatible `Microsoft.OpenApi` model versions and the app throws `TypeLoadException` at startup if both are present. Testcontainers builder constructors (`new MsSqlBuilder()`, `new AzuriteBuilder()`) are obsolete without an explicit image argument — pass the image tag explicitly (see `DatabaseFixture`/`ApiFixture` for the pinned tags in use) rather than relying on the deprecated default-image constants.
+
+**Running the Testcontainers-backed projects requires Docker.** `ClaimsModule.PersistenceTests` and `ClaimsModule.ApiIntegrationTests` will hang/fail without a reachable Docker daemon; `ClaimsModule.UnitTests` has no such requirement and should stay the fast, no-Docker-needed feedback loop. First run of each pulls its container images (SQL Server ~5 min, Azurite much faster) — subsequent runs are fast since Docker caches the layers.
 
 ## Commands
 
 ```bash
 # Backend (.NET 9 / C# 13) — run from /backend
 dotnet build
-dotnet test                                                    # all tests
+dotnet test                                                    # all tests (requires Docker — PersistenceTests/ApiIntegrationTests use Testcontainers)
+dotnet test tests/ClaimsModule.UnitTests                       # fast loop, no Docker needed
 dotnet test --filter "FullyQualifiedName~ClassOrMethodName"    # single test/class
 dotnet run --project src/ClaimsModule.API                      # Swagger UI at /swagger/index.html — must stay reachable outside Development too (§20.3)
 

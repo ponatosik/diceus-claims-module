@@ -22,3 +22,9 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Exposes the top-level-statement-generated Program class publicly so
+// ClaimsModule.ApiIntegrationTests can target it via WebApplicationFactory<Program>.
+public partial class Program
+{
+}

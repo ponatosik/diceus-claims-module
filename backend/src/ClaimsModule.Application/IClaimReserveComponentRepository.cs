@@ -18,4 +18,24 @@ public interface IClaimReserveComponentRepository
 
     /// <summary>Sum of CurrentAmount across all reserve components, grouped by ClaimId — for ListClaimsQuery's totalReserves field.</summary>
     Task<IReadOnlyDictionary<Guid, decimal>> GetTotalReservesByClaimIdsAsync(IEnumerable<Guid> claimIds, CancellationToken cancellationToken = default);
+
+    Task<ClaimReserveComponent?> GetByIdAsync(Guid reserveComponentId, CancellationToken cancellationToken = default);
+
+    /// <summary>The "open-or-adjust" lookup — decides whether OpenReserveCommand creates a new component or reuses an existing one.</summary>
+    Task<ClaimReserveComponent?> GetByClaimIdAndComponentAsync(Guid claimId, ReserveComponentType component, CancellationToken cancellationToken = default);
+
+    Task<ReserveHistory?> GetHistoryByIdAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ReserveHistory>> ListHistoryByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default);
+
+    /// <summary>1 + the count of existing ReserveHistory rows for this component (or 1 if none exist yet) — ADR-0005's per-component ChangeSequence.</summary>
+    Task<int> GetNextChangeSequenceAsync(Guid reserveComponentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Single-claim variant of GetTotalReservesByClaimIdsAsync, used by the BR-R-05 $10M aggregate check.</summary>
+    Task<decimal> GetTotalCurrentAmountByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default);
+
+    void AddHistory(ReserveHistory history);
+
+    /// <summary>Added to the same tracked graph as the reserve approval that produced it (ADR-0004) — not a separate repository/commit.</summary>
+    void AddOutboxMessage(OutboxMessage message);
 }

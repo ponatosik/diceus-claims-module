@@ -33,4 +33,30 @@ public class ClaimReserveComponentRepository(ClaimsDbContext dbContext, IUnitOfW
             .Select(g => new { ClaimId = g.Key, Total = g.Sum(c => c.CurrentAmount) })
             .ToDictionaryAsync(x => x.ClaimId, x => x.Total, cancellationToken);
     }
+
+    public Task<ClaimReserveComponent?> GetByIdAsync(Guid reserveComponentId, CancellationToken cancellationToken = default) =>
+        dbContext.ClaimReserveComponents.FirstOrDefaultAsync(c => c.ReserveComponentId == reserveComponentId, cancellationToken);
+
+    public Task<ClaimReserveComponent?> GetByClaimIdAndComponentAsync(
+        Guid claimId, ReserveComponentType component, CancellationToken cancellationToken = default) =>
+        dbContext.ClaimReserveComponents.FirstOrDefaultAsync(c => c.ClaimId == claimId && c.Component == component, cancellationToken);
+
+    public Task<ReserveHistory?> GetHistoryByIdAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default) =>
+        dbContext.ReserveHistoryEntries.FirstOrDefaultAsync(h => h.ReserveHistoryId == reserveHistoryId, cancellationToken);
+
+    public async Task<IReadOnlyList<ReserveHistory>> ListHistoryByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default) =>
+        await dbContext.ReserveHistoryEntries
+            .Where(h => h.ClaimId == claimId)
+            .OrderByDescending(h => h.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<int> GetNextChangeSequenceAsync(Guid reserveComponentId, CancellationToken cancellationToken = default) =>
+        1 + await dbContext.ReserveHistoryEntries.CountAsync(h => h.ReserveComponentId == reserveComponentId, cancellationToken);
+
+    public Task<decimal> GetTotalCurrentAmountByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default) =>
+        dbContext.ClaimReserveComponents.Where(c => c.ClaimId == claimId).SumAsync(c => c.CurrentAmount, cancellationToken);
+
+    public void AddHistory(ReserveHistory history) => dbContext.ReserveHistoryEntries.Add(history);
+
+    public void AddOutboxMessage(OutboxMessage message) => dbContext.OutboxMessages.Add(message);
 }

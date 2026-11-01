@@ -6,6 +6,7 @@ using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
 using ClaimsModule.Infrastructure;
 using ClaimsModule.Persistence;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +58,19 @@ var app = builder.Build();
 // appends to it). Deliberately no app.UseHangfireDashboard() — dashboard auth/exposure is a
 // deployment concern, out of scope here (see the background-jobs plan's Resolved Ambiguities).
 app.Services.UseInfrastructure();
+
+// §13's local-filesystem fallback (BR-D-03) serves files back via static-file middleware mapped at
+// /uploads — read from app.Configuration (the final, fully-merged configuration), not
+// builder.Configuration, which under WebApplicationFactory's deferred host startup doesn't yet
+// reflect test overrides at this point in Program.cs's own code (the same trap the background-jobs
+// slice's Hangfire:StartServer config read fell into).
+var localStorageRootPath = Path.GetFullPath(app.Configuration["LocalStorage:RootPath"] ?? "uploads");
+Directory.CreateDirectory(localStorageRootPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(localStorageRootPath),
+    RequestPath = "/uploads",
+});
 
 // Must wrap everything else in the pipeline (ADR-0006) so no unhandled exception from auth,
 // routing, or a handler ever falls through to the framework's default error response.

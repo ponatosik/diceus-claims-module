@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ClaimsModule.Domain\ClaimsModule.Domain.csproj" />
     <ProjectReference Include="..\..\src\ClaimsModule.Application\ClaimsModule.Application.csproj" />
+    <ProjectReference Include="..\..\src\ClaimsModule.Infrastructure\ClaimsModule.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\ClaimsModule.API\ClaimsModule.API.csproj" />
   </ItemGroup>
 

@@ -1,4 +1,5 @@
 using ClaimsModule.Infrastructure.BackgroundJobs;
+using ClaimsModule.Infrastructure.Storage;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +43,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<GLPostingFailureHandler>();
         services.AddScoped<OutboxDispatcherJob>();
         services.AddScoped<SlaMonitoringJob>();
+
+        services.Configure<LocalStorageOptions>(configuration.GetSection("LocalStorage"));
+        services.AddScoped<LocalFileSystemStorageService>();
 
         return services;
     }

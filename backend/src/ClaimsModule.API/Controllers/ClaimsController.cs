@@ -1,3 +1,4 @@
+using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using MediatR;
@@ -17,5 +18,12 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, cancellationToken);
         // GetClaimDetail doesn't exist until Task 10 — switches to CreatedAtAction once it lands.
         return Created($"/api/claims/{result.ClaimId}", result);
+    }
+
+    [HttpPost("validate")]
+    public async Task<ActionResult<List<ValidationIssueDto>>> ValidateClaim([FromBody] ValidateClaimQuery query, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(query, cancellationToken);
+        return Ok(result);
     }
 }

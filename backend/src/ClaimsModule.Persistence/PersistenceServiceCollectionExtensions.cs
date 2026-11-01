@@ -1,3 +1,4 @@
+using ClaimsModule.Application;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,14 @@ public static class PersistenceServiceCollectionExtensions
             options.UseSqlServer(
                 configuration.GetConnectionString("ClaimsDatabase"),
                 sql => sql.MigrationsAssembly(typeof(ClaimsDbContext).Assembly.FullName)));
+
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IClaimNumberGenerator, SqlSequenceClaimNumberGenerator>();
+        services.AddScoped<IClaimRepository, ClaimRepository>();
+        services.AddScoped<IClaimReserveComponentRepository, ClaimReserveComponentRepository>();
+        services.AddScoped<ICauseOfLossCodeRepository, CauseOfLossCodeRepository>();
+        services.AddScoped<IPolicyRepository, PolicyRepository>();
+        services.AddScoped<IClaimDocumentRepository, ClaimDocumentRepository>();
 
         return services;
     }

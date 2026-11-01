@@ -47,7 +47,16 @@ public class AuditableEntitySaveChangesInterceptor(ICurrentUserService currentUs
                     break;
                 case AppendOnlyEntity appendOnlyEntity when entry.State == EntityState.Added:
                     appendOnlyEntity.OrganisationId = claimsDbContext.CurrentOrganisationId;
-                    appendOnlyEntity.CreatedAt = DateTimeOffset.UtcNow;
+                    // Only stamp if the caller hasn't already assigned one — AuditLogService assigns
+                    // its own strictly-monotonic CreatedAt (see its own comment) so that multiple
+                    // ClaimAuditLog rows written within one SaveChanges call never tie; calling
+                    // UtcNow() fresh per entity here, as this used to do unconditionally, can return
+                    // the same instant twice in a tight loop on coarser clock resolutions.
+                    if (appendOnlyEntity.CreatedAt == default)
+                    {
+                        appendOnlyEntity.CreatedAt = DateTimeOffset.UtcNow;
+                    }
+
                     break;
             }
         }

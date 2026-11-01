@@ -7,6 +7,16 @@ namespace ClaimsModule.Persistence;
 
 public class AuditLogService(ClaimsDbContext dbContext, ICurrentUserService currentUserService) : IAuditLogService
 {
+    // Root cause of an intermittent StatusTransitionTests flake: the SaveChanges interceptor used to
+    // call DateTimeOffset.UtcNow fresh per entity, and the Reopen cascade's three LogAsync calls land
+    // in one SaveChanges — on coarser clock resolutions two calls in that tight loop can return the
+    // same instant, making CreatedAt ties (and therefore audit-log order) nondeterministic. Rather
+    // than hope a secondary sort key (e.g. the NEWSEQUENTIALID() AuditLogId) happens to track true
+    // call order — it isn't a documented guarantee, and this was the fix that didn't hold up — this
+    // service assigns a strictly-monotonic CreatedAt itself, scoped to one request's AuditLogService
+    // instance, so LogAsync call order and CreatedAt order are the same thing by construction.
+    private DateTimeOffset _lastCreatedAt = DateTimeOffset.MinValue;
+
     public Task LogAsync(AuditLogEntry entry, CancellationToken cancellationToken = default)
     {
         dbContext.ClaimAuditLogEntries.Add(new ClaimAuditLog
@@ -20,9 +30,17 @@ public class AuditLogService(ClaimsDbContext dbContext, ICurrentUserService curr
             RelatedEntityType = entry.RelatedEntityType,
             CorrelationId = GetCorrelationId(),
             CreatedByUserId = currentUserService.UserId,
+            CreatedAt = NextCreatedAt(),
         });
 
         return Task.CompletedTask;
+    }
+
+    private DateTimeOffset NextCreatedAt()
+    {
+        var now = DateTimeOffset.UtcNow;
+        _lastCreatedAt = now > _lastCreatedAt ? now : _lastCreatedAt.AddTicks(1);
+        return _lastCreatedAt;
     }
 
     public async Task<(IReadOnlyList<ClaimAuditLog> Items, int TotalCount)> GetForClaimAsync(

@@ -338,4 +338,47 @@ public class StatusTransitionTests(ApiFixture fixture) : ApiTestBase(fixture)
         var body = await response.Content.ReadFromJsonAsync<ClaimDto>();
         Assert.Equal("Closed", body!.Status);
     }
+
+    // §4.1 is silent on reserves specifically, but a Closed/Withdrawn claim accepting new financial
+    // activity (balance movement, GL posting) is not something a reasonable user would expect to
+    // succeed — reviewer finding against the Slice C plan's original scope.
+
+    [Fact]
+    public async Task Opening_a_reserve_on_a_Closed_claim_is_blocked()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 5_000m);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Closed, justificationNote: "Reserve amount is final; no further activity expected.");
+
+        var response = await client.PostAsJsonAsync($"/api/claims/{claim.ClaimId}/reserves", new OpenReserveCommand
+        {
+            Component = ReserveComponentType.Expense,
+            Amount = 1_000m,
+            ChangeReason = "Late expense discovered.",
+            TransactionType = ReserveTransactionType.Add,
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal("RESERVE-CLAIM-STATUS-01", body!.BlockingConditions![0].Code);
+    }
+
+    [Fact]
+    public async Task Approving_a_reserve_on_a_Withdrawn_claim_is_blocked()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        var opened = await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 50_000m); // Supervisor tier -> PendingApproval
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Withdrawn, reason: "Claimant withdrew the claim.");
+
+        using var supervisorClient = Fixture.CreateAuthenticatedClient("supervisor");
+        var response = await supervisorClient.PostAsync($"/api/claims/{claim.ClaimId}/reserves/{opened.ReserveHistoryId}/approve", null);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal("RESERVE-CLAIM-STATUS-01", body!.BlockingConditions![0].Code);
+    }
 }

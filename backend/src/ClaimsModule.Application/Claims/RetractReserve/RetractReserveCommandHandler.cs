@@ -7,6 +7,7 @@ using MediatR;
 namespace ClaimsModule.Application.Claims.RetractReserve;
 
 public class RetractReserveCommandHandler(
+    IClaimRepository claimRepository,
     IClaimReserveComponentRepository reserveComponentRepository,
     IAuditLogService auditLogService,
     ICurrentUserService currentUserService) : IRequestHandler<RetractReserveCommand, ReserveTransactionDto>
@@ -19,6 +20,10 @@ public class RetractReserveCommandHandler(
             throw new NotFoundException("ReserveHistory", request.ReserveHistoryId);
         }
 
+        var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
+            ?? throw new NotFoundException("Claim", request.ClaimId);
+        ReserveClaimStatusGuard.EnsureMutable(claim);
+
         if (history.ApprovalStatus != ReserveApprovalStatus.PendingApproval)
         {
             throw new BusinessRuleViolationException(
@@ -27,8 +32,10 @@ public class RetractReserveCommandHandler(
 
         if (currentUserService.UserId is null || currentUserService.UserId != history.SubmittedByUserId)
         {
+            // Distinct from RESERVE-NOT-PENDING-01: the transaction IS pending, the caller just isn't
+            // the one who may act on it — a frontend needs to tell these two apart (reviewer finding).
             throw new BusinessRuleViolationException(
-                [new BlockingCondition("RESERVE-NOT-PENDING-01", "Only the submitter may retract their own pending reserve.")]);
+                [new BlockingCondition("RESERVE-RETRACT-FORBIDDEN-01", "Only the submitter may retract their own pending reserve.")]);
         }
 
         var component = await reserveComponentRepository.GetByIdAsync(history.ReserveComponentId, cancellationToken)

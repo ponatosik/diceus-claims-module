@@ -2,6 +2,7 @@ using System.Text.Json;
 using ClaimsModule.Application.Common.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -70,6 +71,12 @@ public class ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware>? l
             Title = "The resource was modified by another request. Reload and try again.",
             Status = StatusCodes.Status409Conflict,
         },
+        DbUpdateException dbUpdateException when IsUniqueConstraintViolation(dbUpdateException) => new ErrorResponse
+        {
+            Type = "ConcurrencyConflict",
+            Title = "This request conflicts with another concurrent request. Reload and try again.",
+            Status = StatusCodes.Status409Conflict,
+        },
         _ => new ErrorResponse
         {
             Type = "InternalServerError",
@@ -77,4 +84,9 @@ public class ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware>? l
             Status = StatusCodes.Status500InternalServerError,
         },
     };
+
+    // SQL Server error 2601 ("Cannot insert duplicate key row ... with unique index") and 2627
+    // ("Violation of UNIQUE KEY constraint") are the two forms a unique-index collision takes.
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 };
 }

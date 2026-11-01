@@ -8,11 +8,14 @@ public class OpenReserveCommandValidator : AbstractValidator<OpenReserveCommand>
 {
     public OpenReserveCommandValidator(IClaimRepository claimRepository)
     {
+        RuleFor(x => x.Component).IsInEnum().WithMessage("Invalid reserve component type.");
+        RuleFor(x => x.TransactionType).IsInEnum().WithMessage("Invalid reserve transaction type.");
+
         RuleFor(x => x.Amount)
             .Must((command, amount) => amount != 0 && (amount > 0 || command.Component == ReserveComponentType.SubrogationRecoverable))
             .WithMessage("Reserve amount must be greater than zero.");
 
-        RuleFor(x => x.ChangeReason).NotEmpty();
+        RuleFor(x => x.ChangeReason).NotEmpty().MaximumLength(500);
 
         // BR-C-06's consequence: unlike Slice B's identical Warning at claim-creation time, a missing
         // policy link is a hard block here — "reserve creation is blocked until a policy is linked."

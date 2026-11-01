@@ -20,6 +20,10 @@ public class ClaimReserveComponentConfiguration : IEntityTypeConfiguration<Claim
 
         builder.Property(c => c.RowVer).IsRowVersion();
 
+        // Backstop against two concurrent first-time OpenReserveCommand requests for the same
+        // component both reading "not found" and inserting a duplicate component row (Review Focus #5).
+        builder.HasIndex(c => new { c.ClaimId, c.Component }).IsUnique().HasFilter("[IsDeleted] = 0");
+
         builder.HasOne(c => c.Claim).WithMany().HasForeignKey(c => c.ClaimId).OnDelete(DeleteBehavior.Restrict);
 
         builder.ConfigureTenantAudit();

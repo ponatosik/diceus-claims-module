@@ -19,6 +19,11 @@ public class SetReserveOverrideCommandHandler(
             throw new BusinessRuleViolationException([new BlockingCondition("BR-R-05", "Only a Manager may set the reserve override flag.")]);
         }
 
+        if (claim.ReserveOverrideApproved)
+        {
+            return;
+        }
+
         claim.ReserveOverrideApproved = true;
 
         // Not in §14.1's official event list — a reasonable addition for traceability, same judgment

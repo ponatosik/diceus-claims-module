@@ -7,6 +7,7 @@ using MediatR;
 namespace ClaimsModule.Application.Claims.RejectReserve;
 
 public class RejectReserveCommandHandler(
+    IClaimRepository claimRepository,
     IClaimReserveComponentRepository reserveComponentRepository,
     IAuditLogService auditLogService,
     ICurrentUserService currentUserService) : IRequestHandler<RejectReserveCommand, ReserveTransactionDto>
@@ -18,6 +19,10 @@ public class RejectReserveCommandHandler(
         {
             throw new NotFoundException("ReserveHistory", request.ReserveHistoryId);
         }
+
+        var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
+            ?? throw new NotFoundException("Claim", request.ClaimId);
+        ReserveClaimStatusGuard.EnsureMutable(claim);
 
         if (history.ApprovalStatus != ReserveApprovalStatus.PendingApproval)
         {
@@ -47,7 +52,7 @@ public class RejectReserveCommandHandler(
         await auditLogService.LogAsync(
             new AuditLogEntry(
                 history.ClaimId, "RESERVE_REJECTED", $"Reserve rejected: {component.Component} ({history.Amount:C}).",
-                null, request.RejectionReason, history.ReserveHistoryId, "ReserveHistory"),
+                request.RejectionReason, null, history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 
         await reserveComponentRepository.CommitChangesAsync(cancellationToken);

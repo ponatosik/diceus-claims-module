@@ -117,6 +117,34 @@ public class OpenReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task An_out_of_range_component_value_is_rejected_as_invalid()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+
+        var response = await client.PostAsJsonAsync($"/api/claims/{claim.ClaimId}/reserves",
+            new { component = 99, amount = 1_000m, changeReason = "test", transactionType = "Add" });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Contains("Invalid reserve component type.", body!.Errors!["Component"]);
+    }
+
+    [Fact]
+    public async Task An_out_of_range_transaction_type_value_is_rejected_as_invalid()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+
+        var response = await client.PostAsJsonAsync($"/api/claims/{claim.ClaimId}/reserves",
+            new { component = "Indemnity", amount = 1_000m, changeReason = "test", transactionType = 99 });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Contains("Invalid reserve transaction type.", body!.Errors!["TransactionType"]);
+    }
+
+    [Fact]
     public async Task A_second_submission_for_the_same_component_adjusts_it_rather_than_duplicating_it()
     {
         using var client = Fixture.CreateAuthenticatedClient("handler");
@@ -161,10 +189,9 @@ public class OpenReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
         var first = await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 10_000m);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        // Push the claim's total near the $10M line using direct approved history isn't available yet
-        // in this task (no approve endpoint). Simulate "already near the limit" by setting the
-        // component's balance directly via SQL, then prove the next auto-approving submission is
-        // blocked by the aggregate check.
+        // Push the claim's total near the $10M line by setting the component's balance directly via
+        // SQL (cheaper than driving a real approval flow just to get a component near the limit),
+        // then prove the next auto-approving submission is blocked by the aggregate check.
         await using (var connection = new SqlConnection(Fixture.ClaimsConnectionString))
         {
             await connection.OpenAsync();

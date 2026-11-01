@@ -140,6 +140,92 @@ public class ReserveTests(DatabaseFixture fixture)
         await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task A_second_active_component_of_the_same_type_on_the_same_claim_is_rejected_by_the_unique_index()
+    {
+        await fixture.ResetAsync();
+        var claimId = await SeedClaimAsync();
+
+        await using var dbContext = CreateDbContext();
+        dbContext.ClaimReserveComponents.Add(new ClaimReserveComponent
+        {
+            OrganisationId = OrganisationId,
+            ClaimId = claimId,
+            Component = ReserveComponentType.Indemnity,
+            CurrentAmount = 1000m,
+            Status = ReserveComponentStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        await dbContext.SaveChangesAsync();
+
+        // Simulates two concurrent OpenReserveCommand requests both reading "component not found" and
+        // both inserting — the application-level read-then-insert in OpenReserveCommandHandler can't
+        // prevent this by itself (Review Focus #5 under concurrency); this index is the backstop.
+        dbContext.ClaimReserveComponents.Add(new ClaimReserveComponent
+        {
+            OrganisationId = OrganisationId,
+            ClaimId = claimId,
+            Component = ReserveComponentType.Indemnity,
+            CurrentAmount = 500m,
+            Status = ReserveComponentStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task ReserveHistory_RowVer_rejects_a_stale_concurrent_update()
+    {
+        await fixture.ResetAsync();
+        var claimId = await SeedClaimAsync();
+
+        await using var setupContext = CreateDbContext();
+        var component = new ClaimReserveComponent
+        {
+            OrganisationId = OrganisationId,
+            ClaimId = claimId,
+            Component = ReserveComponentType.Indemnity,
+            CurrentAmount = 0m,
+            Status = ReserveComponentStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        setupContext.ClaimReserveComponents.Add(component);
+        await setupContext.SaveChangesAsync();
+
+        var history = new ReserveHistory
+        {
+            OrganisationId = OrganisationId,
+            ReserveComponentId = component.ReserveComponentId,
+            ClaimId = claimId,
+            TransactionType = ReserveTransactionType.Add,
+            Amount = 50_000m,
+            PreviousBalance = 0m,
+            NewBalance = 50_000m,
+            ApprovalStatus = ReserveApprovalStatus.PendingApproval,
+            ChangeReason = "Initial estimate",
+            PostingStatus = ReservePostingStatus.Pending,
+            IdempotencyKey = $"Reserve:{component.ReserveComponentId}:Change:1",
+            ChangeSequence = 1,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        setupContext.ReserveHistoryEntries.Add(history);
+        await setupContext.SaveChangesAsync();
+
+        // Two separate DbContexts load the same pending row — simulating an approve and a reject
+        // racing each other — each with the RowVer value as it stood before either wrote anything.
+        await using var firstContext = CreateDbContext();
+        var firstRead = await firstContext.ReserveHistoryEntries.SingleAsync(h => h.ReserveHistoryId == history.ReserveHistoryId);
+        await using var secondContext = CreateDbContext();
+        var secondRead = await secondContext.ReserveHistoryEntries.SingleAsync(h => h.ReserveHistoryId == history.ReserveHistoryId);
+
+        firstRead.ApprovalStatus = ReserveApprovalStatus.Approved;
+        await firstContext.SaveChangesAsync();
+
+        secondRead.ApprovalStatus = ReserveApprovalStatus.Rejected;
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondContext.SaveChangesAsync());
+    }
+
     private async Task<Guid> SeedClaimAsync()
     {
         await using var dbContext = CreateDbContext();

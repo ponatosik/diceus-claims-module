@@ -92,6 +92,19 @@ public class RejectReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task An_empty_rejection_reason_is_rejected()
+    {
+        using var handlerClient = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(handlerClient);
+        var opened = await OpenReserveAsync(handlerClient, claim.ClaimId, ReserveComponentType.Indemnity, 50_000m);
+        using var supervisorClient = Fixture.CreateAuthenticatedClient("supervisor");
+
+        var response = await RejectReserveAsync(supervisorClient, claim.ClaimId, opened.ReserveHistoryId, "");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Resubmitting_after_rejection_creates_a_new_history_row_and_keeps_the_rejected_one()
     {
         using var handlerClient = Fixture.CreateAuthenticatedClient("handler");

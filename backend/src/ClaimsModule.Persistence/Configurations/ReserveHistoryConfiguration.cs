@@ -30,6 +30,8 @@ public class ReserveHistoryConfiguration : IEntityTypeConfiguration<ReserveHisto
         // a defensive backstop alongside the application-level check-before-write.
         builder.HasIndex(h => h.IdempotencyKey).IsUnique();
 
+        builder.Property(h => h.RowVer).IsRowVersion();
+
         builder.HasOne<ClaimReserveComponent>().WithMany().HasForeignKey(h => h.ReserveComponentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Claim>().WithMany().HasForeignKey(h => h.ClaimId).OnDelete(DeleteBehavior.Restrict);
 

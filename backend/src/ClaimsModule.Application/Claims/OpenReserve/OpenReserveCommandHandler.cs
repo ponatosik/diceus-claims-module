@@ -17,6 +17,7 @@ public class OpenReserveCommandHandler(
     {
         var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
             ?? throw new NotFoundException("Claim", request.ClaimId);
+        ReserveClaimStatusGuard.EnsureMutable(claim);
 
         var component = await reserveComponentRepository.GetByClaimIdAndComponentAsync(request.ClaimId, request.Component, cancellationToken);
         if (component is null)

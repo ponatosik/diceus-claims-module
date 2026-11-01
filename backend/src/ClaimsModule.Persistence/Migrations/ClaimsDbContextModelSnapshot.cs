@@ -522,7 +522,9 @@ namespace ClaimsModule.Persistence.Migrations
 
                     b.HasKey("ReserveComponentId");
 
-                    b.HasIndex("ClaimId");
+                    b.HasIndex("ClaimId", "Component")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("ClaimReserveComponents", (string)null);
                 });
@@ -869,6 +871,12 @@ namespace ClaimsModule.Persistence.Migrations
 
                     b.Property<Guid>("ReserveComponentId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVer")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<Guid?>("SubmittedByUserId")
                         .HasColumnType("uniqueidentifier");

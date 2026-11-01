@@ -29,4 +29,11 @@ public class ReserveHistory : AppendOnlyEntity
     public string IdempotencyKey { get; set; } = string.Empty;
     public int ChangeSequence { get; set; }
     public Guid? SubmittedByUserId { get; set; }
+
+    /// <summary>
+    /// Optimistic concurrency token. ReserveHistory rows are mutated in place on approve/reject/retract
+    /// (Resolved Ambiguity 5 of the Slice C plan) rather than truly append-only for those transitions,
+    /// so without this a second approve/reject/retract racing the first would silently last-write-win.
+    /// </summary>
+    public byte[] RowVer { get; set; } = [];
 }

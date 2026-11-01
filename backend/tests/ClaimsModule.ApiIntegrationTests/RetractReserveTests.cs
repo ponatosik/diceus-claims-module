@@ -69,7 +69,7 @@ public class RetractReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-        Assert.Equal("RESERVE-NOT-PENDING-01", body!.BlockingConditions![0].Code);
+        Assert.Equal("RESERVE-RETRACT-FORBIDDEN-01", body!.BlockingConditions![0].Code);
     }
 
     [Fact]

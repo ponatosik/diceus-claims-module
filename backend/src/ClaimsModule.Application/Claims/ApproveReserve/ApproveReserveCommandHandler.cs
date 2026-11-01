@@ -21,13 +21,17 @@ public class ApproveReserveCommandHandler(
             throw new NotFoundException("ReserveHistory", request.ReserveHistoryId);
         }
 
+        var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
+            ?? throw new NotFoundException("Claim", request.ClaimId);
+        ReserveClaimStatusGuard.EnsureMutable(claim);
+
         if (history.ApprovalStatus != ReserveApprovalStatus.PendingApproval)
         {
             throw new BusinessRuleViolationException(
                 [new BlockingCondition("RESERVE-NOT-PENDING-01", "Only a reserve transaction in PendingApproval status can be approved.")]);
         }
 
-        if (currentUserService.UserId is not null && currentUserService.UserId == history.SubmittedByUserId)
+        if (currentUserService.UserId is null || currentUserService.UserId == history.SubmittedByUserId)
         {
             throw new BusinessRuleViolationException([new BlockingCondition("BR-R-03", "Self-approval is not permitted.")]);
         }
@@ -38,9 +42,6 @@ public class ApproveReserveCommandHandler(
             throw new BusinessRuleViolationException(
                 [new BlockingCondition("BR-R-02", "Your role does not have authority to approve this reserve amount.")]);
         }
-
-        var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
-            ?? throw new NotFoundException("Claim", request.ClaimId);
 
         var currentTotal = await reserveComponentRepository.GetTotalCurrentAmountByClaimIdAsync(request.ClaimId, cancellationToken);
         var limitConditions = ReserveAggregateLimit.Evaluate(currentTotal, history.Amount, claim.ReserveOverrideApproved);

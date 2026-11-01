@@ -41,6 +41,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<PostGLReserveChangeJob>();
         services.AddScoped<GLPostingFailureHandler>();
         services.AddScoped<OutboxDispatcherJob>();
+        services.AddScoped<SlaMonitoringJob>();
 
         return services;
     }
@@ -63,5 +64,6 @@ public static class InfrastructureServiceCollectionExtensions
         // startup; resolving the registered service avoids depending on that ordering at all.
         var recurringJobManager = services.GetRequiredService<IRecurringJobManager>();
         recurringJobManager.AddOrUpdate<OutboxDispatcherJob>("outbox-dispatcher", j => j.ExecuteAsync(CancellationToken.None), Cron.Minutely);
+        recurringJobManager.AddOrUpdate<SlaMonitoringJob>("sla-monitoring", j => j.ExecuteAsync(CancellationToken.None), "*/15 * * * *");
     }
 }

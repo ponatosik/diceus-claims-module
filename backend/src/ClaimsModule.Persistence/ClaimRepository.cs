@@ -69,4 +69,10 @@ public class ClaimRepository(ClaimsDbContext dbContext, IUnitOfWork unitOfWork) 
 
         return (items, totalCount);
     }
+
+    public async Task<IReadOnlyList<Claim>> ListStaleAsync(
+        IReadOnlyCollection<ClaimStatus> statuses, DateTimeOffset updatedBefore, CancellationToken cancellationToken = default) =>
+        await dbContext.Claims
+            .Where(c => statuses.Contains(c.Status) && (c.UpdatedAt ?? c.CreatedAt) < updatedBefore)
+            .ToListAsync(cancellationToken);
 }

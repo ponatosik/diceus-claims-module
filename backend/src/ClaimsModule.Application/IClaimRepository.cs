@@ -23,4 +23,12 @@ public interface IClaimRepository
 
     Task<(IReadOnlyList<Claim> Items, int TotalCount)> ListAsync(
         ClaimListFilter filter, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// §12.2's SLA monitoring query: claims in one of <paramref name="statuses"/> whose last activity
+    /// (UpdatedAt, falling back to CreatedAt for a claim never modified since creation) is older than
+    /// <paramref name="updatedBefore"/>.
+    /// </summary>
+    Task<IReadOnlyList<Claim>> ListStaleAsync(
+        IReadOnlyCollection<ClaimStatus> statuses, DateTimeOffset updatedBefore, CancellationToken cancellationToken = default);
 }

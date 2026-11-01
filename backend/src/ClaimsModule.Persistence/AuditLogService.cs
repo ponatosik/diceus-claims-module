@@ -63,6 +63,13 @@ public class AuditLogService(ClaimsDbContext dbContext, ICurrentUserService curr
         return (items, totalCount);
     }
 
+    public async Task<DateTimeOffset?> GetLastEventTimestampAsync(Guid claimId, string eventType, CancellationToken cancellationToken = default) =>
+        await dbContext.ClaimAuditLogEntries
+            .Where(a => a.ClaimId == claimId && a.EventType == eventType)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => (DateTimeOffset?)a.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
     /// <summary>Sourced from Activity.Current's trace id, per wayfinder ticket 8 — not a bespoke header.</summary>
     private static Guid? GetCorrelationId()
     {

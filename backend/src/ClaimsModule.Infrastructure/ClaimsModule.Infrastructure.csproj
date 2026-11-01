@@ -4,4 +4,9 @@
     <ProjectReference Include="..\ClaimsModule.Application\ClaimsModule.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="Hangfire.SqlServer" />
+  </ItemGroup>
+
 </Project>

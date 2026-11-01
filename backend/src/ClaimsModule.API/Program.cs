@@ -4,6 +4,7 @@ using ClaimsModule.API.Authentication;
 using ClaimsModule.API.Middleware;
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
+using ClaimsModule.Infrastructure;
 using ClaimsModule.Persistence;
 using Microsoft.OpenApi;
 
@@ -33,6 +34,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddApplication();
 builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
@@ -50,6 +52,11 @@ ActivitySource.AddActivityListener(new ActivityListener
 });
 
 var app = builder.Build();
+
+// Registers global job filters + recurring jobs (empty for now; later background-job slice work
+// appends to it). Deliberately no app.UseHangfireDashboard() — dashboard auth/exposure is a
+// deployment concern, out of scope here (see the background-jobs plan's Resolved Ambiguities).
+app.Services.UseInfrastructure();
 
 // Must wrap everything else in the pipeline (ADR-0006) so no unhandled exception from auth,
 // routing, or a handler ever falls through to the framework's default error response.

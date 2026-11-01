@@ -1,11 +1,14 @@
 using System.Net.Http.Headers;
 using ClaimsModule.API.Authentication;
 using ClaimsModule.Persistence;
+using Hangfire;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Respawn;
 using Testcontainers.Azurite;
 using Testcontainers.MsSql;
@@ -39,6 +42,8 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     private string _claimsConnectionString = string.Empty;
     private SqlConnection? _respawnConnection;
     private Respawner? _respawner;
+    private SqlConnection? _hangfireRespawnConnection;
+    private Respawner? _hangfireRespawner;
 
     public string HangfireConnectionString { get; private set; } = string.Empty;
 
@@ -60,6 +65,12 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         var options = new DbContextOptionsBuilder<ClaimsDbContext>().UseSqlServer(_claimsConnectionString).Options;
         await using var dbContext = new ClaimsDbContext(options);
         await dbContext.Database.MigrateAsync();
+
+        // Forces the WebApplicationFactory host to build now rather than lazily on the first test's
+        // first client — AddHangfire(...)'s UseSqlServerStorage call creates Hangfire's own schema in
+        // the stand-in database as a side effect of host startup, and ResetAsync()'s Hangfire
+        // Respawner (constructed on first use, below) needs at least one table to exist already.
+        _ = Server;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -69,10 +80,26 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:ClaimsDatabase"] = _claimsConnectionString,
+                ["ConnectionStrings:HangfireDatabase"] = HangfireConnectionString,
                 [$"{JwtOptions.SectionName}:Issuer"] = TestJwtOptions.Issuer,
                 [$"{JwtOptions.SectionName}:Audience"] = TestJwtOptions.Audience,
                 [$"{JwtOptions.SectionName}:SigningKey"] = TestJwtOptions.SigningKey,
             });
+        });
+
+        // Storage + client/recurring-job-manager stay registered (jobs can genuinely be enqueued
+        // against the real Hangfire stand-in database), but the actual background processing server
+        // is removed so no job auto-runs during a test — tests trigger jobs directly and
+        // deterministically (per the background-jobs plan's own testing decision), and a live server
+        // polling the same database Respawn resets between tests would be a second source of races.
+        builder.ConfigureServices(services =>
+        {
+            var hangfireHostedService = services.FirstOrDefault(
+                d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(BackgroundJobServerHostedService));
+            if (hangfireHostedService is not null)
+            {
+                services.Remove(hangfireHostedService);
+            }
         });
     }
 
@@ -108,6 +135,22 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         await _respawner.ResetAsync(_respawnConnection!);
+
+        // Per ADR-0009: "both databases emptied before each test" — Hangfire's SQL storage creates
+        // its own schema eagerly when AddHangfire(...) runs during host startup, so this is safe to
+        // construct lazily on first use here, mirroring the main database's Respawner above.
+        if (_hangfireRespawner is null)
+        {
+            _hangfireRespawnConnection = new SqlConnection(HangfireConnectionString);
+            await _hangfireRespawnConnection.OpenAsync();
+
+            _hangfireRespawner = await Respawner.CreateAsync(_hangfireRespawnConnection, new RespawnerOptions
+            {
+                DbAdapter = DbAdapter.SqlServer,
+            });
+        }
+
+        await _hangfireRespawner.ResetAsync(_hangfireRespawnConnection!);
     }
 
     private async Task<string> CreateHangfireStandInDatabaseAsync()
@@ -131,6 +174,11 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         if (_respawnConnection is not null)
         {
             await _respawnConnection.DisposeAsync();
+        }
+
+        if (_hangfireRespawnConnection is not null)
+        {
+            await _hangfireRespawnConnection.DisposeAsync();
         }
 
         await _sqlContainer.DisposeAsync();

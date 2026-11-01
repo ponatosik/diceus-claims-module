@@ -1,14 +1,11 @@
 using System.Net.Http.Headers;
 using ClaimsModule.API.Authentication;
 using ClaimsModule.Persistence;
-using Hangfire;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Respawn;
 using Testcontainers.Azurite;
 using Testcontainers.MsSql;
@@ -81,25 +78,17 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:ClaimsDatabase"] = _claimsConnectionString,
                 ["ConnectionStrings:HangfireDatabase"] = HangfireConnectionString,
+                // Storage/client/recurring-job-manager stay registered (jobs can genuinely be
+                // enqueued against the real Hangfire stand-in database), but the actual background
+                // processing server that dequeues and runs them is disabled — tests trigger jobs
+                // directly and deterministically (per the background-jobs plan's own testing
+                // decision), and a live server racing a test's own assertions, or racing Respawn's
+                // reset of the same database between tests, would be a second source of races.
+                ["Hangfire:StartServer"] = "false",
                 [$"{JwtOptions.SectionName}:Issuer"] = TestJwtOptions.Issuer,
                 [$"{JwtOptions.SectionName}:Audience"] = TestJwtOptions.Audience,
                 [$"{JwtOptions.SectionName}:SigningKey"] = TestJwtOptions.SigningKey,
             });
-        });
-
-        // Storage + client/recurring-job-manager stay registered (jobs can genuinely be enqueued
-        // against the real Hangfire stand-in database), but the actual background processing server
-        // is removed so no job auto-runs during a test — tests trigger jobs directly and
-        // deterministically (per the background-jobs plan's own testing decision), and a live server
-        // polling the same database Respawn resets between tests would be a second source of races.
-        builder.ConfigureServices(services =>
-        {
-            var hangfireHostedService = services.FirstOrDefault(
-                d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(BackgroundJobServerHostedService));
-            if (hangfireHostedService is not null)
-            {
-                services.Remove(hangfireHostedService);
-            }
         });
     }
 

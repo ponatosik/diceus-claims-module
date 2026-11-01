@@ -27,6 +27,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IPolicyRepository, PolicyRepository>();
         services.AddScoped<IClaimDocumentRepository, ClaimDocumentRepository>();
         services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddScoped<IOutboxRepository, OutboxRepository>();
 
         return services;
     }

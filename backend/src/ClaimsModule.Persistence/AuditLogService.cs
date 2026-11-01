@@ -32,7 +32,12 @@ public class AuditLogService(ClaimsDbContext dbContext, ICurrentUserService curr
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
+            // Multiple entries written within the same SaveChangesAsync call (e.g. the Reopen cascade's
+            // three audit rows) can share an identical CreatedAt — clock resolution isn't fine enough
+            // to guarantee otherwise. AuditLogId's NEWSEQUENTIALID() default is assigned in true insert
+            // order, so it's a reliable secondary key for breaking those ties deterministically.
             .OrderByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.AuditLogId)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

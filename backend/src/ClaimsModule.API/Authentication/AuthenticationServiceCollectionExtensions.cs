@@ -19,7 +19,11 @@ public static class AuthenticationServiceCollectionExtensions
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
+                var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                    ?? throw new InvalidOperationException(
+                        "Missing \"Jwt\" configuration. The dev signing key lives only in " +
+                        "appsettings.Development.json (ADR-0007) — a non-Development environment must " +
+                        "supply its own Jwt:Issuer/Jwt:Audience/Jwt:SigningKey (or point at a real IdP).");
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {

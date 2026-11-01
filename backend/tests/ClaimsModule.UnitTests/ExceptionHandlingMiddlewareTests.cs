@@ -4,6 +4,7 @@ using ClaimsModule.Application.Common.Exceptions;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ClaimsModule.UnitTests;
 
@@ -61,6 +62,30 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Equal("CC-01", body.BlockingConditions![0].Code);
     }
 
+    [Fact]
+    public async Task An_unexpected_exception_is_logged_at_error_level()
+    {
+        var logger = new FakeLogger();
+        var middleware = new ExceptionHandlingMiddleware(logger);
+        var context = new DefaultHttpContext { Response = { Body = new MemoryStream() } };
+
+        await middleware.InvokeAsync(context, _ => throw new InvalidOperationException("boom"));
+
+        Assert.Contains(logger.LoggedLevels, level => level == LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task A_handled_business_rule_failure_is_not_logged_as_an_error()
+    {
+        var logger = new FakeLogger();
+        var middleware = new ExceptionHandlingMiddleware(logger);
+        var context = new DefaultHttpContext { Response = { Body = new MemoryStream() } };
+
+        await middleware.InvokeAsync(context, _ => throw new NotFoundException("Claim", Guid.NewGuid()));
+
+        Assert.DoesNotContain(logger.LoggedLevels, level => level == LogLevel.Error);
+    }
+
     private static Exception CreateException(Type exceptionType)
     {
         if (exceptionType == typeof(NotFoundException))
@@ -88,5 +113,17 @@ public class ExceptionHandlingMiddlewareTests
         var body = await JsonSerializer.DeserializeAsync<ErrorResponse>(context.Response.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         return (context.Response.StatusCode, body!);
+    }
+
+    private class FakeLogger : ILogger<ExceptionHandlingMiddleware>
+    {
+        public List<LogLevel> LoggedLevels { get; } = [];
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            LoggedLevels.Add(logLevel);
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
     }
 }

@@ -3,6 +3,7 @@ using ClaimsModule.Application.Common.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ClaimsModule.API.Middleware;
 
@@ -12,7 +13,7 @@ namespace ClaimsModule.API.Middleware;
 /// §10.5, a <see cref="BusinessRuleViolationException"/> gets the <c>blockingConditions</c> shape from
 /// ADR-0008. Everything else maps to the status code that actually fits it.
 /// </summary>
-public class ExceptionHandlingMiddleware
+public class ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware>? logger = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -25,6 +26,14 @@ public class ExceptionHandlingMiddleware
         catch (Exception exception)
         {
             var response = MapToErrorResponse(exception);
+
+            // Only the catch-all 500 case is actually unexpected — every other mapped exception is
+            // an anticipated, already-handled business/validation outcome and would just be noise.
+            if (response.Status == StatusCodes.Status500InternalServerError)
+            {
+                logger?.LogError(exception, "Unhandled exception while processing {Method} {Path}", context.Request.Method, context.Request.Path);
+            }
+
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = response.Status;
             await JsonSerializer.SerializeAsync(context.Response.Body, response, JsonOptions);

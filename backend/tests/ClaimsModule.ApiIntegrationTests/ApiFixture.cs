@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using ClaimsModule.API.Authentication;
 using ClaimsModule.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -21,6 +23,15 @@ namespace ClaimsModule.ApiIntegrationTests;
 public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private const string HangfireStandInDatabaseName = "ClaimsModule_Hangfire";
+
+    // Mirrors appsettings.json's Jwt section — kept in-memory here so tests never depend on a file
+    // on disk, per this task's own instruction.
+    private static readonly JwtOptions TestJwtOptions = new()
+    {
+        Issuer = "https://claims-module.local",
+        Audience = "claims-module-api",
+        SigningKey = "local-dev-only-signing-key-not-a-secret-32chars+",
+    };
 
     private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04").Build();
     private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.28.0").Build();
@@ -58,8 +69,23 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:ClaimsDatabase"] = _claimsConnectionString,
+                [$"{JwtOptions.SectionName}:Issuer"] = TestJwtOptions.Issuer,
+                [$"{JwtOptions.SectionName}:Audience"] = TestJwtOptions.Audience,
+                [$"{JwtOptions.SectionName}:SigningKey"] = TestJwtOptions.SigningKey,
             });
         });
+    }
+
+    /// <summary>
+    /// Mints a JWT in-process via <see cref="TestTokenFactory"/> (no HTTP round-trip to a separate
+    /// issuer, per spec user story 26) and attaches it as a Bearer token on a fresh client.
+    /// </summary>
+    public HttpClient CreateAuthenticatedClient(string role, Guid? userId = null)
+    {
+        var client = CreateClient();
+        var token = TestTokenFactory.CreateToken(role, userId ?? Guid.NewGuid(), TestJwtOptions);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
     }
 
     /// <summary>

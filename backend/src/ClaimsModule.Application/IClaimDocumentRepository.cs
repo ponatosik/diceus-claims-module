@@ -2,8 +2,12 @@ using ClaimsModule.Domain;
 
 namespace ClaimsModule.Application;
 
-/// <summary>Read-only repository over ClaimDocuments. No upload path exists yet — Slice E's job (§9.7).</summary>
+/// <summary>Repository for the ClaimDocument aggregate (ADR-0003, §9.7).</summary>
 public interface IClaimDocumentRepository
 {
+    void Add(ClaimDocument document);
+
+    Task CommitChangesAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ClaimDocument>> ListByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default);
 }

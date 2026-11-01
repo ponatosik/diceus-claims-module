@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.AddClaimParty;
+using ClaimsModule.Application.Claims.ApproveReserve;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Claims.OpenReserve;
@@ -112,6 +113,13 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ReserveListDto>> ListClaimReserves(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new ListClaimReservesQuery(id), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves/{txnId:guid}/approve")]
+    public async Task<ActionResult<ReserveTransactionDto>> ApproveReserve(Guid id, Guid txnId, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ApproveReserveCommand(id, txnId), cancellationToken);
         return Ok(result);
     }
 }

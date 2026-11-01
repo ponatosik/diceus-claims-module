@@ -18,7 +18,7 @@ namespace ClaimsModule.ApiIntegrationTests;
 [Collection(ApiCollection.Name)]
 public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
-    private async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
+    private static async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
     {
         var policyId = (await client.GetFromJsonAsync<List<PolicySearchResultDto>>("/api/policies/search?q=POL-2024-001001"))!.Single().PolicyId;
         var command = new CreateClaimCommand
@@ -46,7 +46,7 @@ public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         return (await response.Content.ReadFromJsonAsync<ReserveTransactionDto>())!;
     }
 
-    private async Task<int> CountAuditEntriesAsync(HttpClient client, Guid claimId, string eventType)
+    private static async Task<int> CountAuditEntriesAsync(HttpClient client, Guid claimId, string eventType)
     {
         var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claimId}/audit");
         return audit!.Items.Count(a => a.EventType == eventType);
@@ -61,7 +61,7 @@ public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         using var scope = Fixture.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
-        await job.ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-1");
+        await job.ExecuteAsync(opened.ReserveHistoryId, "job-1");
 
         var reserves = await client.GetFromJsonAsync<ReserveListDto>($"/api/claims/{claim.ClaimId}/reserves");
         Assert.Equal("Posted", reserves!.History.Single().PostingStatus);
@@ -80,8 +80,8 @@ public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         using var scope = Fixture.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
 
-        await job.ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-1");
-        await job.ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-2");
+        await job.ExecuteAsync(opened.ReserveHistoryId, "job-1");
+        await job.ExecuteAsync(opened.ReserveHistoryId, "job-2");
 
         Assert.Equal(1, await CountAuditEntriesAsync(client, claim.ClaimId, "GL_POSTING_SIMULATED"));
     }
@@ -105,8 +105,8 @@ public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         _ = await secondScope.ServiceProvider.GetRequiredService<IClaimReserveComponentRepository>()
             .GetHistoryByIdAsync(opened.ReserveHistoryId);
 
-        await firstJob.ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-1");
-        await secondJob.ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-2"); // must not throw
+        await firstJob.ExecuteAsync(opened.ReserveHistoryId, "job-1");
+        await secondJob.ExecuteAsync(opened.ReserveHistoryId, "job-2"); // must not throw
 
         Assert.Equal(1, await CountAuditEntriesAsync(client, claim.ClaimId, "GL_POSTING_SIMULATED"));
     }

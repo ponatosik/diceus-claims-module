@@ -20,7 +20,7 @@ public class PartyManagementTests(ApiFixture fixture) : ApiTestBase(fixture)
         RiskObjects = [],
     };
 
-    private async Task<ClaimDto> CreateClaimAsync(HttpClient client, List<CreatePartyDto>? parties = null) =>
+    private static async Task<ClaimDto> CreateClaimAsync(HttpClient client, List<CreatePartyDto>? parties = null) =>
         (await (await client.PostAsJsonAsync("/api/claims", ValidCommand(parties))).Content.ReadFromJsonAsync<ClaimDto>())!;
 
     [Fact]

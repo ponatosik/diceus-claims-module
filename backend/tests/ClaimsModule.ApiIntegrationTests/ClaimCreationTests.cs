@@ -12,7 +12,7 @@ using ClaimsModule.Domain;
 namespace ClaimsModule.ApiIntegrationTests;
 
 [Collection(ApiCollection.Name)]
-public class ClaimCreationTests(ApiFixture fixture) : ApiTestBase(fixture)
+public partial class ClaimCreationTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     private static CreateClaimCommand ValidCommand(
         DateTimeOffset? lossDate = null,
@@ -20,14 +20,14 @@ public class ClaimCreationTests(ApiFixture fixture) : ApiTestBase(fixture)
         string? causeOfLossCode = null,
         Guid? policyId = null,
         List<CreatePartyDto>? parties = null) => new()
-    {
-        PolicyId = policyId,
-        LossDate = lossDate ?? DateTimeOffset.UtcNow.AddDays(-1),
-        LossDescription = lossDescription ?? "A pipe burst and flooded the basement overnight.",
-        CauseOfLossCode = causeOfLossCode ?? "COL-FIRE",
-        Parties = parties ?? [new CreatePartyDto(PartyRole.Claimant, PartyType.Person, "Jane", "Doe", null, null, null)],
-        RiskObjects = [],
-    };
+        {
+            PolicyId = policyId,
+            LossDate = lossDate ?? DateTimeOffset.UtcNow.AddDays(-1),
+            LossDescription = lossDescription ?? "A pipe burst and flooded the basement overnight.",
+            CauseOfLossCode = causeOfLossCode ?? "COL-FIRE",
+            Parties = parties ?? [new CreatePartyDto(PartyRole.Claimant, PartyType.Person, "Jane", "Doe", null, null, null)],
+            RiskObjects = [],
+        };
 
     [Fact]
     public async Task Happy_path_creates_a_draft_claim_with_a_generated_claim_number()
@@ -38,7 +38,7 @@ public class ClaimCreationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ClaimDto>();
-        Assert.Matches(new Regex(@"^CLM-\d{4}-\d{7}$"), body!.ClaimNumber);
+        Assert.Matches(ClaimNumberPattern(), body!.ClaimNumber);
         Assert.Equal("Draft", body.Status);
     }
 
@@ -222,4 +222,7 @@ public class ClaimCreationTests(ApiFixture fixture) : ApiTestBase(fixture)
             (await r.Content.ReadFromJsonAsync<ClaimDto>())!.ClaimNumber));
         Assert.Equal(10, claimNumbers.Distinct().Count());
     }
+
+    [GeneratedRegex(@"^CLM-\d{4}-\d{7}$")]
+    private static partial Regex ClaimNumberPattern();
 }

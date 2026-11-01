@@ -18,7 +18,7 @@ public class PostGLReserveChangeJob(
     IClaimReserveComponentRepository reserveComponentRepository,
     IAuditLogService auditLogService)
 {
-    public async Task ExecuteAsync(Guid reserveHistoryId, string idempotencyKey, string postingJobId)
+    public async Task ExecuteAsync(Guid reserveHistoryId, string postingJobId)
     {
         var history = await reserveComponentRepository.GetHistoryByIdAsync(reserveHistoryId);
         if (history is null || history.PostingStatus == ReservePostingStatus.Posted)

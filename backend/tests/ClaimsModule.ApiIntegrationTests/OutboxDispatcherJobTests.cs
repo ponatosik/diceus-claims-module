@@ -15,7 +15,7 @@ namespace ClaimsModule.ApiIntegrationTests;
 [Collection(ApiCollection.Name)]
 public class OutboxDispatcherJobTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
-    private async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
+    private static async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
     {
         var policyId = (await client.GetFromJsonAsync<List<PolicySearchResultDto>>("/api/policies/search?q=POL-2024-001001"))!.Single().PolicyId;
         var command = new CreateClaimCommand
@@ -43,7 +43,7 @@ public class OutboxDispatcherJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         return (await response.Content.ReadFromJsonAsync<ReserveTransactionDto>())!;
     }
 
-    private async Task<int> CountAuditEntriesAsync(HttpClient client, Guid claimId, string eventType)
+    private static async Task<int> CountAuditEntriesAsync(HttpClient client, Guid claimId, string eventType)
     {
         var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claimId}/audit");
         return audit!.Items.Count(a => a.EventType == eventType);
@@ -108,9 +108,9 @@ public class OutboxDispatcherJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         var job1 = jobScope1.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
         var job2 = jobScope2.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
         await job1.ExecuteAsync(
-            (Guid)enqueuedJobs[0].Value.Job!.Args[0]!, (string)enqueuedJobs[0].Value.Job!.Args[1]!, (string)enqueuedJobs[0].Value.Job!.Args[2]!);
+            (Guid)enqueuedJobs[0].Value.Job!.Args[0]!, (string)enqueuedJobs[0].Value.Job!.Args[1]!);
         await job2.ExecuteAsync(
-            (Guid)enqueuedJobs[1].Value.Job!.Args[0]!, (string)enqueuedJobs[1].Value.Job!.Args[1]!, (string)enqueuedJobs[1].Value.Job!.Args[2]!);
+            (Guid)enqueuedJobs[1].Value.Job!.Args[0]!, (string)enqueuedJobs[1].Value.Job!.Args[1]!);
 
         Assert.Equal(1, await CountAuditEntriesAsync(client, claim.ClaimId, "GL_POSTING_SIMULATED"));
     }

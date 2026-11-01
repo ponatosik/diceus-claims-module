@@ -12,7 +12,7 @@ namespace ClaimsModule.ApiIntegrationTests;
 [Collection(ApiCollection.Name)]
 public class RetractReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
-    private async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
+    private static async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
     {
         var policyId = (await client.GetFromJsonAsync<List<PolicySearchResultDto>>("/api/policies/search?q=POL-2024-001001"))!.Single().PolicyId;
         var command = new CreateClaimCommand

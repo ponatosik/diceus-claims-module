@@ -10,6 +10,8 @@ namespace ClaimsModule.UnitTests;
 
 public class ExceptionHandlingMiddlewareTests
 {
+    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web);
+
     [Theory]
     [InlineData(typeof(NotFoundException), 404, "NotFound")]
     [InlineData(typeof(DbUpdateConcurrencyException), 409, "ConcurrencyConflict")]
@@ -110,7 +112,7 @@ public class ExceptionHandlingMiddlewareTests
         await middleware.InvokeAsync(context, _ => throw exception);
 
         context.Response.Body.Seek(0, SeekOrigin.Begin);
-        var body = await JsonSerializer.DeserializeAsync<ErrorResponse>(context.Response.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var body = await JsonSerializer.DeserializeAsync<ErrorResponse>(context.Response.Body, ResponseJsonOptions);
 
         return (context.Response.StatusCode, body!);
     }

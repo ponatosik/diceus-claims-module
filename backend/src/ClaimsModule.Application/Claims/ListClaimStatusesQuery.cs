@@ -15,7 +15,7 @@ public class ListClaimStatusesQueryHandler : IRequestHandler<ListClaimStatusesQu
         var result = Enum.GetValues<ClaimStatus>()
             .Select(status => new ClaimStatusDto(
                 status.ToString(),
-                ClaimStatusTransitions.GetValidNextStatuses(status).Select(s => s.ToString()).ToList()))
+                [.. ClaimStatusTransitions.GetValidNextStatuses(status).Select(s => s.ToString())]))
             .ToList();
 
         return Task.FromResult(result);

@@ -49,7 +49,7 @@ public class OutboxDispatcherJob(
                 var payload = JsonSerializer.Deserialize<EnqueueGLPostingJobPayload>(message.Payload)!;
                 var postingJobId = Guid.NewGuid().ToString();
                 backgroundJobClient.Enqueue<PostGLReserveChangeJob>(
-                    j => j.ExecuteAsync(payload.ReserveHistoryId, payload.IdempotencyKey, postingJobId));
+                    j => j.ExecuteAsync(payload.ReserveHistoryId, postingJobId));
                 message.ProcessedAt = DateTimeOffset.UtcNow;
                 break;
 

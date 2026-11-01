@@ -14,7 +14,7 @@ public static class DocumentFileNameSanitizer
         var lastSegment = fileName.Split('/', '\\')[^1];
 
         var chars = lastSegment.Select(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '_');
-        var safe = new string(chars.ToArray()).Trim('_', '.');
+        var safe = new string([.. chars]).Trim('_', '.');
 
         return safe.Length == 0 ? Fallback : safe;
     }

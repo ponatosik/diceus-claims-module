@@ -18,7 +18,7 @@ public class GetPolicyCoverageQueryHandler(IPolicyRepository repository) : IRequ
         return new PolicyCoverageDto(
             policy.PolicyId,
             policy.PolicyNumber,
-            policy.CoverageTypes.Split(',').ToList(),
+            [.. policy.CoverageTypes.Split(',')],
             policy.EffectiveDate,
             policy.ExpirationDate,
             policy.Status.ToString());

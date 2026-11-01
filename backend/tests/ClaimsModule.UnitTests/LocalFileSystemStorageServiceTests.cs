@@ -14,6 +14,8 @@ public class LocalFileSystemStorageServiceTests : IDisposable
         {
             Directory.Delete(_tempRoot, recursive: true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     private LocalFileSystemStorageService CreateService() =>

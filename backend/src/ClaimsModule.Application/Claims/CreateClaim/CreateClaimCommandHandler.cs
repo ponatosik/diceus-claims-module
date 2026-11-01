@@ -47,7 +47,7 @@ public class CreateClaimCommandHandler(
                 EstimatedLossAmount = request.EstimatedLossAmount,
                 ReportDate = DateTimeOffset.UtcNow,
             },
-            Parties = (request.Parties ?? []).Select(p => new ClaimParty
+            Parties = [.. (request.Parties ?? []).Select(p => new ClaimParty
             {
                 PartyRole = p.PartyRole,
                 PartyType = p.PartyType,
@@ -56,15 +56,15 @@ public class CreateClaimCommandHandler(
                 CompanyName = p.CompanyName,
                 Email = p.Email,
                 Phone = p.Phone,
-            }).ToList(),
-            RiskObjects = (request.RiskObjects ?? []).Select(r => new ClaimRiskObject
+            })],
+            RiskObjects = [.. (request.RiskObjects ?? []).Select(r => new ClaimRiskObject
             {
                 AssetType = r.AssetType,
                 AssetDescription = r.AssetDescription,
                 DamageDescription = r.DamageDescription,
                 IsPrimary = r.IsPrimary,
                 AssetReference = r.AssetReference,
-            }).ToList(),
+            })],
         };
 
         claimRepository.Add(claim);

@@ -47,8 +47,6 @@ public class ValidateClaimQueryHandler(IValidator<CreateClaimCommand> validator)
 
         var result = await validator.ValidateAsync(transientCommand, cancellationToken);
 
-        return result.Errors
-            .Select(failure => new ValidationIssueDto(failure.PropertyName, failure.ErrorMessage, failure.Severity.ToString()))
-            .ToList();
+        return [.. result.Errors.Select(failure => new ValidationIssueDto(failure.PropertyName, failure.ErrorMessage, failure.Severity.ToString()))];
     }
 }

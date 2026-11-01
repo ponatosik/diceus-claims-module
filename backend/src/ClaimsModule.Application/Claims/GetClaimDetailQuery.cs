@@ -39,17 +39,17 @@ public class GetClaimDetailQueryHandler(
                 claim.LossEvent.LossLocation,
                 claim.LossEvent.CauseOfLossCode,
                 claim.LossEvent.EstimatedLossAmount),
-            claim.Parties.Select(p => new ClaimPartyDto(
+            [.. claim.Parties.Select(p => new ClaimPartyDto(
                 p.ClaimPartyId, p.PartyRole.ToString(), p.PartyType.ToString(),
-                p.FirstName, p.LastName, p.CompanyName, p.Email, p.Phone, p.IsActive)).ToList(),
-            claim.RiskObjects.Select(r => new ClaimRiskObjectDto(
+                p.FirstName, p.LastName, p.CompanyName, p.Email, p.Phone, p.IsActive))],
+            [.. claim.RiskObjects.Select(r => new ClaimRiskObjectDto(
                 r.ClaimRiskObjectId, r.AssetType.ToString(), r.AssetDescription,
-                r.DamageDescription, r.IsPrimary, r.AssetReference)).ToList(),
-            reserves.Select(r => new ReserveSummaryDto(
-                r.ReserveComponentId, r.Component.ToString(), r.CurrentAmount, r.Status.ToString())).ToList(),
-            documents.Select(d => new ClaimDocumentDto(
-                d.ClaimDocumentId, d.DocumentName, d.DocumentType, d.UploadedAt)).ToList(),
-            recentAuditEntries.Select(a => new AuditLogEntryDto(a.CreatedAt, a.EventType, a.Description)).ToList(),
+                r.DamageDescription, r.IsPrimary, r.AssetReference))],
+            [.. reserves.Select(r => new ReserveSummaryDto(
+                r.ReserveComponentId, r.Component.ToString(), r.CurrentAmount, r.Status.ToString()))],
+            [.. documents.Select(d => new ClaimDocumentDto(
+                d.ClaimDocumentId, d.DocumentName, d.DocumentType, d.UploadedAt))],
+            [.. recentAuditEntries.Select(a => new AuditLogEntryDto(a.CreatedAt, a.EventType, a.Description))],
             claim.ReserveOverrideApproved);
     }
 }

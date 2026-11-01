@@ -23,7 +23,7 @@ public class SlaMonitoringJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         RiskObjects = [],
     };
 
-    private async Task<ClaimDto> CreateClaimAsync(HttpClient client) =>
+    private static async Task<ClaimDto> CreateClaimAsync(HttpClient client) =>
         (await (await client.PostAsJsonAsync("/api/claims", ValidCommand())).Content.ReadFromJsonAsync<ClaimDto>())!;
 
     private static Task<HttpResponseMessage> TransitionAsync(HttpClient client, Guid claimId, ClaimStatus targetStatus, string? reason = null) =>
@@ -57,7 +57,7 @@ public class SlaMonitoringJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         await command.ExecuteNonQueryAsync();
     }
 
-    private async Task<int> CountBreachEntriesAsync(HttpClient client, Guid claimId)
+    private static async Task<int> CountBreachEntriesAsync(HttpClient client, Guid claimId)
     {
         var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claimId}/audit");
         return audit!.Items.Count(a => a.EventType == "SLA_BREACH_DETECTED");

@@ -24,11 +24,11 @@ public class StatusTransitionTests(ApiFixture fixture) : ApiTestBase(fixture)
         RiskObjects = [],
     };
 
-    private async Task<ClaimDto> CreateClaimAsync(HttpClient client) =>
+    private static async Task<ClaimDto> CreateClaimAsync(HttpClient client) =>
         (await (await client.PostAsJsonAsync("/api/claims", ValidCommand())).Content.ReadFromJsonAsync<ClaimDto>())!;
 
     /// <summary>OpenReserveCommand requires a linked policy (BR-C-06's consequence) — ValidCommand()'s claims have none.</summary>
-    private async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
+    private static async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
     {
         var policyId = (await client.GetFromJsonAsync<List<PolicySearchResultDto>>("/api/policies/search?q=POL-2024-001001"))!.Single().PolicyId;
         var command = ValidCommand();

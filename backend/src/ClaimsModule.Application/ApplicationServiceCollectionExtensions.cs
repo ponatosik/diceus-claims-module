@@ -1,4 +1,6 @@
+using ClaimsModule.Application.Common.Behaviors;
 using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ClaimsModule.Application;
@@ -12,6 +14,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(applicationAssembly));
         services.AddValidatorsFromAssembly(applicationAssembly);
         services.AddAutoMapper(cfg => { }, [applicationAssembly]);
+
+        // Wired at the MediatR pipeline level, not controller-level [ApiController] model validation
+        // (§18.1 — reviewers check this explicitly).
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         return services;
     }

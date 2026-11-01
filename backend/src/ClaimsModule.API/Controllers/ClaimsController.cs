@@ -107,4 +107,11 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
+
+    [HttpGet("{id:guid}/reserves")]
+    public async Task<ActionResult<ReserveListDto>> ListClaimReserves(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ListClaimReservesQuery(id), cancellationToken);
+        return Ok(result);
+    }
 }

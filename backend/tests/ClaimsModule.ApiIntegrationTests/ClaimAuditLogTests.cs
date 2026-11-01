@@ -4,6 +4,7 @@ using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Domain;
+using Microsoft.Data.SqlClient;
 
 namespace ClaimsModule.ApiIntegrationTests;
 
@@ -52,5 +53,29 @@ public class ClaimAuditLogTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await client.GetAsync($"/api/claims/{Guid.NewGuid()}/audit");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_creation_entry_records_who_did_it()
+    {
+        var userId = Guid.NewGuid();
+        using var client = Fixture.CreateAuthenticatedClient("handler", userId);
+        var created = await (await client.PostAsJsonAsync("/api/claims", ValidCommand())).Content.ReadFromJsonAsync<ClaimDto>();
+
+        var createdByUserId = await GetCreatedByUserIdAsync(created!.ClaimId, "CLAIM_CREATED");
+
+        Assert.Equal(userId, createdByUserId);
+    }
+
+    private async Task<Guid?> GetCreatedByUserIdAsync(Guid claimId, string eventType)
+    {
+        await using var connection = new SqlConnection(Fixture.ClaimsConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT CreatedByUserId FROM ClaimAuditLog WHERE ClaimId = @claimId AND EventType = @eventType";
+        command.Parameters.AddWithValue("@claimId", claimId);
+        command.Parameters.AddWithValue("@eventType", eventType);
+        var result = await command.ExecuteScalarAsync();
+        return result is Guid guid ? guid : null;
     }
 }

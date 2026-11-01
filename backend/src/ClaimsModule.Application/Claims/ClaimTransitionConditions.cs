@@ -79,9 +79,13 @@ public static class ClaimTransitionConditions
     {
         var conditions = new List<BlockingCondition>();
 
-        if (!string.Equals(role, "supervisor", StringComparison.OrdinalIgnoreCase))
+        // Manager has "all Supervisor capabilities" (§3) — BR-ST-04's "Supervisor role" is a floor,
+        // not an exact match, so Manager must be able to reopen too.
+        var hasRequiredRole = string.Equals(role, "supervisor", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(role, "manager", StringComparison.OrdinalIgnoreCase);
+        if (!hasRequiredRole)
         {
-            conditions.Add(new BlockingCondition("BR-ST-04", "Reopening a claim requires the Supervisor role."));
+            conditions.Add(new BlockingCondition("BR-ST-04", "Reopening a claim requires the Supervisor or Manager role."));
         }
 
         if (string.IsNullOrWhiteSpace(reason))

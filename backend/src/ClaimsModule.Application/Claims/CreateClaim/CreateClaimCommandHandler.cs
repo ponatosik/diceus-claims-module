@@ -29,7 +29,10 @@ public class CreateClaimCommandHandler(
         {
             ClaimId = Guid.NewGuid(),
             ClaimNumber = claimNumber,
-            PolicyId = request.PolicyId,
+            // policy?.PolicyId, not request.PolicyId: an id that doesn't resolve is only a Warning
+            // (not a block), but Claims.PolicyId is a real FK (ClaimConfiguration) — persisting the
+            // caller's unresolved id would throw DbUpdateException (-> 500) on SaveChanges.
+            PolicyId = policy?.PolicyId,
             PolicyNumber = policy?.PolicyNumber,
             ClientName = policy?.ClientName,
             Status = ClaimStatus.Draft,
@@ -44,7 +47,7 @@ public class CreateClaimCommandHandler(
                 EstimatedLossAmount = request.EstimatedLossAmount,
                 ReportDate = DateTimeOffset.UtcNow,
             },
-            Parties = request.Parties.Select(p => new ClaimParty
+            Parties = (request.Parties ?? []).Select(p => new ClaimParty
             {
                 PartyRole = p.PartyRole,
                 PartyType = p.PartyType,
@@ -54,7 +57,7 @@ public class CreateClaimCommandHandler(
                 Email = p.Email,
                 Phone = p.Phone,
             }).ToList(),
-            RiskObjects = request.RiskObjects.Select(r => new ClaimRiskObject
+            RiskObjects = (request.RiskObjects ?? []).Select(r => new ClaimRiskObject
             {
                 AssetType = r.AssetType,
                 AssetDescription = r.AssetDescription,

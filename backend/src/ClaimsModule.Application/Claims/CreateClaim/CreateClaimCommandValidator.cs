@@ -34,7 +34,7 @@ public class CreateClaimCommandValidator : AbstractValidator<CreateClaimCommand>
             .WithMessage("Cause of loss code is not recognised or is inactive.");
 
         RuleFor(x => x.Parties)
-            .Must(parties => parties.Any(p => p.PartyRole == PartyRole.Claimant))
+            .Must(parties => parties is not null && parties.Any(p => p.PartyRole == PartyRole.Claimant))
             .WithMessage("At least one Claimant party is required to open a claim.");
 
         // BR-C-06: missing policy is a Warning, not a block.
@@ -78,7 +78,7 @@ public class CreateClaimCommandValidator : AbstractValidator<CreateClaimCommand>
 
         // §5.4: no risk objects linked is a Warning, not a block.
         RuleFor(x => x.RiskObjects)
-            .Must(riskObjects => riskObjects.Count > 0)
+            .Must(riskObjects => riskObjects is { Count: > 0 })
             .WithSeverity(Severity.Warning)
             .WithMessage("No risk objects linked to this claim.");
 

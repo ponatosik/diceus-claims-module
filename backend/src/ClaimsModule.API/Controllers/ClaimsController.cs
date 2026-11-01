@@ -43,9 +43,10 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize,
         CancellationToken cancellationToken)
     {
+        var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var query = new ListClaimsQuery(
             status, dateFrom, dateTo, assignedHandlerId, causeOfLossCode, policyId, search,
-            page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize);
+            normalizedPage, normalizedPageSize);
         var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
@@ -61,10 +62,19 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<PagedResult<AuditLogEntryDto>>> GetClaimAuditLog(
         Guid id, [FromQuery] int page, [FromQuery] int pageSize, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(
-            new GetClaimAuditLogQuery(id, page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize), cancellationToken);
+        var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
+        var result = await mediator.Send(new GetClaimAuditLogQuery(id, normalizedPage, normalizedPageSize), cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Clamps caller-supplied paging to sane bounds — a 0 (unset) page/pageSize falls back to the
+    /// documented default, but a negative value (whether from a bug or a malicious client) is
+    /// clamped rather than reaching EF Core's Skip/Take as a negative OFFSET/FETCH, which SQL Server
+    /// rejects and would otherwise surface as a 500.
+    /// </summary>
+    private static (int Page, int PageSize) NormalizePaging(int page, int pageSize) =>
+        (page <= 0 ? 1 : page, pageSize switch { 0 => 20, < 0 => 20, > 100 => 100, _ => pageSize });
 
     [HttpPost("{id:guid}/parties")]
     public async Task<ActionResult<ClaimPartyDto>> AddClaimParty(Guid id, [FromBody] AddClaimPartyCommand command, CancellationToken cancellationToken)

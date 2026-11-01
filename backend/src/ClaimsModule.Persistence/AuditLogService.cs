@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClaimsModule.Persistence;
 
-public class AuditLogService(ClaimsDbContext dbContext) : IAuditLogService
+public class AuditLogService(ClaimsDbContext dbContext, ICurrentUserService currentUserService) : IAuditLogService
 {
     public Task LogAsync(AuditLogEntry entry, CancellationToken cancellationToken = default)
     {
@@ -19,6 +19,7 @@ public class AuditLogService(ClaimsDbContext dbContext) : IAuditLogService
             RelatedEntityId = entry.RelatedEntityId,
             RelatedEntityType = entry.RelatedEntityType,
             CorrelationId = GetCorrelationId(),
+            CreatedByUserId = currentUserService.UserId,
         });
 
         return Task.CompletedTask;

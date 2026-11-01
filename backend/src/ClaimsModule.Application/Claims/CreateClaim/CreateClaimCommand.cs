@@ -24,9 +24,13 @@ public class CreateClaimCommand : IRequest<ClaimDto>, IHasValidationWarnings
 
     public decimal? EstimatedLossAmount { get; set; }
 
-    public List<CreatePartyDto> Parties { get; set; } = [];
+    // Nullable (not just default-initialized) so an explicit JSON "parties": null doesn't trip
+    // [ApiController]'s implicit "non-nullable reference type => required" ModelState check, which
+    // would otherwise short-circuit to a 400 with the framework's default body shape instead of
+    // reaching FluentValidation's standard 422 errors shape (FR-ERR-01).
+    public List<CreatePartyDto>? Parties { get; set; } = [];
 
-    public List<CreateRiskObjectDto> RiskObjects { get; set; } = [];
+    public List<CreateRiskObjectDto>? RiskObjects { get; set; } = [];
 
     public List<ValidationFailure> Warnings { get; } = [];
 }

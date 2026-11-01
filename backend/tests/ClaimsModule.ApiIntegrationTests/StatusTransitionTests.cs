@@ -210,4 +210,58 @@ public class StatusTransitionTests(ApiFixture fixture) : ApiTestBase(fixture)
         var withReason = await TransitionAsync(client, claim.ClaimId, ClaimStatus.Withdrawn, reason: "Claimant withdrew the claim.");
         Assert.Equal(HttpStatusCode.OK, withReason.StatusCode);
     }
+
+    [Fact]
+    public async Task Withdrawal_reason_is_recorded_in_the_audit_trail()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Withdrawn, reason: "Claimant withdrew the claim.");
+
+        var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claim.ClaimId}/audit");
+
+        Assert.Contains(audit!.Items, e => e.EventType == "STATUS_CHANGED" && e.Description.Contains("Claimant withdrew the claim."));
+    }
+
+    [Fact]
+    public async Task CC_04_justification_note_is_recorded_in_the_audit_trail()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await InsertReserveComponentAsync(claim.ClaimId, 500m);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Closed, justificationNote: "approved by ops");
+
+        var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claim.ClaimId}/audit");
+
+        Assert.Contains(audit!.Items, e => e.EventType == "CLAIM_CLOSED" && e.Description.Contains("approved by ops"));
+    }
+
+    [Fact]
+    public async Task A_manager_can_reopen_a_closed_claim()
+    {
+        using var handlerClient = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimAsync(handlerClient);
+        await TransitionAsync(handlerClient, claim.ClaimId, ClaimStatus.Open);
+        await TransitionAsync(handlerClient, claim.ClaimId, ClaimStatus.Closed);
+
+        using var managerClient = Fixture.CreateAuthenticatedClient("manager");
+        var response = await TransitionAsync(managerClient, claim.ClaimId, ClaimStatus.Reopened, reason: "manager-initiated reopen");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ClaimDto>();
+        Assert.Equal("Open", body!.Status);
+    }
+
+    [Fact]
+    public async Task Negative_pagination_values_are_clamped_rather_than_crashing()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        await CreateClaimAsync(client);
+
+        var response = await client.GetAsync("/api/claims?page=-1&pageSize=-5");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }

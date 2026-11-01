@@ -58,12 +58,31 @@ public class TransitionClaimStatusCommandHandler(
         var oldStatus = claim.Status;
         claim.Status = request.TargetStatus;
         await auditLogService.LogAsync(
-            new AuditLogEntry(claim.ClaimId, "STATUS_CHANGED", $"Status changed from {oldStatus} to {request.TargetStatus}.", oldStatus.ToString(), request.TargetStatus.ToString()),
+            new AuditLogEntry(
+                claim.ClaimId, "STATUS_CHANGED", DescribeStatusChange(oldStatus, request.TargetStatus, request.Reason),
+                oldStatus.ToString(), request.TargetStatus.ToString()),
             cancellationToken);
 
         await claimRepository.CommitChangesAsync(cancellationToken);
 
         return mapper.Map<ClaimDto>(claim);
+    }
+
+    /// <summary>
+    /// Appends the caller-supplied reason (e.g. a withdrawal reason, §4.1) to the audit description —
+    /// without this, the reason the state machine itself required would never be recorded anywhere.
+    /// </summary>
+    private static string DescribeStatusChange(ClaimStatus oldStatus, ClaimStatus newStatus, string? reason)
+    {
+        var description = $"Status changed from {oldStatus} to {newStatus}.";
+        return string.IsNullOrWhiteSpace(reason) ? description : $"{description} Reason: {reason}";
+    }
+
+    /// <summary>CC-04's justification note is the entire point of the soft block — it must survive in the audit trail.</summary>
+    private static string DescribeClosure(string claimNumber, string? justificationNote)
+    {
+        var description = $"Claim {claimNumber} closed.";
+        return string.IsNullOrWhiteSpace(justificationNote) ? description : $"{description} Justification: {justificationNote}";
     }
 
     private async Task EnsureOpenConditionsMetAsync(Claim claim, CancellationToken cancellationToken)
@@ -118,10 +137,12 @@ public class TransitionClaimStatusCommandHandler(
         claim.ClosureReason = request.Reason;
 
         await auditLogService.LogAsync(
-            new AuditLogEntry(claim.ClaimId, "STATUS_CHANGED", $"Status changed from {oldStatus} to {ClaimStatus.Closed}.", oldStatus.ToString(), ClaimStatus.Closed.ToString()),
+            new AuditLogEntry(
+                claim.ClaimId, "STATUS_CHANGED", DescribeStatusChange(oldStatus, ClaimStatus.Closed, request.Reason),
+                oldStatus.ToString(), ClaimStatus.Closed.ToString()),
             cancellationToken);
         await auditLogService.LogAsync(
-            new AuditLogEntry(claim.ClaimId, "CLAIM_CLOSED", $"Claim {claim.ClaimNumber} closed.", null, request.Reason),
+            new AuditLogEntry(claim.ClaimId, "CLAIM_CLOSED", DescribeClosure(claim.ClaimNumber, request.JustificationNote), null, request.Reason),
             cancellationToken);
 
         await claimRepository.CommitChangesAsync(cancellationToken);

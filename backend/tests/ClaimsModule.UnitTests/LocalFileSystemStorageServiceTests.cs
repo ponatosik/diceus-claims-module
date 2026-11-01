@@ -53,4 +53,21 @@ public class LocalFileSystemStorageServiceTests : IDisposable
 
         Assert.Equal(blobPath, downloadUrl);
     }
+
+    [Fact]
+    public async Task Uploading_to_an_existing_path_throws_instead_of_silently_overwriting()
+    {
+        var service = CreateService();
+        var organisationId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+
+        using (var firstStream = new MemoryStream(Encoding.UTF8.GetBytes("first")))
+        {
+            await service.UploadAsync(organisationId, claimId, "report.pdf", firstStream, "application/pdf");
+        }
+
+        using var secondStream = new MemoryStream(Encoding.UTF8.GetBytes("second"));
+        await Assert.ThrowsAsync<IOException>(
+            () => service.UploadAsync(organisationId, claimId, "report.pdf", secondStream, "application/pdf"));
+    }
 }

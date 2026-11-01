@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -24,7 +25,14 @@ public class AzureBlobStorageService(BlobServiceClient blobServiceClient) : ISto
         var blobName = $"{organisationId}/{claimId}/{sanitisedFileName}";
         var blobClient = containerClient.GetBlobClient(blobName);
         await blobClient.UploadAsync(
-            content, new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            content,
+            new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+                // Defensive backstop against ever silently overwriting an existing document's bytes
+                // if the caller's own uniqueness guarantee is ever violated — fails instead.
+                Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All },
+            },
             cancellationToken);
 
         return $"{ContainerName}/{blobName}";

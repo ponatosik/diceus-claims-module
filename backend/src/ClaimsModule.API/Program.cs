@@ -70,6 +70,19 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(localStorageRootPath),
     RequestPath = "/uploads",
+    // A sanitised filename can genuinely have no extension (e.g. "passwd", or the "file" fallback) —
+    // the default ServeUnknownFileTypes=false would 404 those instead of serving them.
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream",
+    // These documents are claims evidence served unauthenticated from the API's own origin — force
+    // download rather than inline rendering, so a document whose declared Content-Type at upload
+    // time doesn't match its extension (allowed, since REQUIREMENTS.md scopes out content
+    // inspection) can never be rendered as HTML/script in the browser.
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        context.Context.Response.Headers.Append("Content-Disposition", "attachment");
+    },
 });
 
 // Must wrap everything else in the pipeline (ADR-0006) so no unhandled exception from auth,

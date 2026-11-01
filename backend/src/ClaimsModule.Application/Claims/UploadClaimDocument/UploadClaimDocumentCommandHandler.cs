@@ -18,13 +18,17 @@ public class UploadClaimDocumentCommandHandler(
         var claim = await claimRepository.GetByIdAsync(request.ClaimId, cancellationToken)
             ?? throw new NotFoundException("Claim", request.ClaimId);
 
-        var sanitisedFileName = DocumentFileNameSanitizer.Sanitize(request.FileName);
+        // Generated before the upload so the stored filename can be made unique per document — two
+        // uploads of the same original filename to the same claim must never collide on one storage
+        // path and silently overwrite each other's bytes.
+        var claimDocumentId = Guid.NewGuid();
+        var uniqueFileName = MakeUnique(DocumentFileNameSanitizer.Sanitize(request.FileName), claimDocumentId);
         var blobPath = await storageService.UploadAsync(
-            claim.OrganisationId, claim.ClaimId, sanitisedFileName, request.Content, request.ContentType, cancellationToken);
+            claim.OrganisationId, claim.ClaimId, uniqueFileName, request.Content, request.ContentType, cancellationToken);
 
         var document = new ClaimDocument
         {
-            ClaimDocumentId = Guid.NewGuid(),
+            ClaimDocumentId = claimDocumentId,
             ClaimId = claim.ClaimId,
             DocumentType = request.DocumentType,
             DocumentName = request.FileName,
@@ -51,5 +55,13 @@ public class UploadClaimDocumentCommandHandler(
             document.ClaimDocumentId, document.ClaimId, document.DocumentType, document.DocumentName,
             document.ContentType, document.FileSizeBytes, document.UploadedAt, document.UploadedByUserId,
             document.Notes, downloadUrl);
+    }
+
+    /// <summary>Inserts the document id before the extension, e.g. "report.pdf" → "report_{id:N}.pdf".</summary>
+    private static string MakeUnique(string sanitisedFileName, Guid claimDocumentId)
+    {
+        var extension = Path.GetExtension(sanitisedFileName);
+        var stem = Path.GetFileNameWithoutExtension(sanitisedFileName);
+        return $"{stem}_{claimDocumentId:N}{extension}";
     }
 }

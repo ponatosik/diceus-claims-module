@@ -1,4 +1,5 @@
 using System.Text;
+using Azure;
 using ClaimsModule.Application;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,5 +42,23 @@ public class AzureBlobStorageServiceTests(ApiFixture fixture) : ApiTestBase(fixt
         var query = QueryHelpers.ParseQuery(new Uri(downloadUrl).Query);
         var expiry = DateTimeOffset.Parse(query["se"]!);
         Assert.InRange(expiry, DateTimeOffset.UtcNow.AddMinutes(55), DateTimeOffset.UtcNow.AddMinutes(65));
+    }
+
+    [Fact]
+    public async Task Uploading_to_an_existing_blob_path_throws_instead_of_silently_overwriting()
+    {
+        using var scope = Fixture.Services.CreateScope();
+        var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
+        var organisationId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+
+        using (var firstStream = new MemoryStream(Encoding.UTF8.GetBytes("first")))
+        {
+            await storageService.UploadAsync(organisationId, claimId, "report.pdf", firstStream, "application/pdf");
+        }
+
+        using var secondStream = new MemoryStream(Encoding.UTF8.GetBytes("second"));
+        await Assert.ThrowsAsync<RequestFailedException>(
+            () => storageService.UploadAsync(organisationId, claimId, "report.pdf", secondStream, "application/pdf"));
     }
 }

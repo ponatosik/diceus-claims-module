@@ -20,7 +20,15 @@ public class UploadClaimDocumentCommandValidator : AbstractValidator<UploadClaim
 
     public UploadClaimDocumentCommandValidator()
     {
-        RuleFor(x => x.DocumentType).NotEmpty();
+        RuleFor(x => x.DocumentType).NotEmpty().MaximumLength(100);
+
+        // 200, not DocumentName's full 255-char column — the stored filename gets a "_{guid:N}"
+        // uniqueness suffix (33 chars) appended after sanitising, and the result must still fit
+        // comfortably under the local filesystem's 255-byte-per-segment limit (the tighter of the
+        // two storage backends' constraints).
+        RuleFor(x => x.FileName).NotEmpty().MaximumLength(200);
+
+        RuleFor(x => x.Notes).MaximumLength(500);
 
         RuleFor(x => x.ContentType)
             .Must(AllowedContentTypes.Contains)

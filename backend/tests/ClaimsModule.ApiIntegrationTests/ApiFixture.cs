@@ -107,6 +107,22 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     /// <summary>
+    /// A client against a separate host instance that reuses this fixture's containers but
+    /// overrides <c>StorageProvider</c> — used to exercise the LocalFileSystem provider end-to-end
+    /// (upload, static-file serving) without spinning up a second set of Testcontainers.
+    /// </summary>
+    public HttpClient CreateAuthenticatedClientWithStorageProvider(string storageProvider, string role, Guid? userId = null)
+    {
+        var factory = WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configBuilder) =>
+                configBuilder.AddInMemoryCollection(new Dictionary<string, string?> { ["StorageProvider"] = storageProvider })));
+        var client = factory.CreateClient();
+        var token = TestTokenFactory.CreateToken(role, userId ?? Guid.NewGuid(), TestJwtOptions);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    /// <summary>
     /// Clears business/transactional data between tests sharing this one assembly-lifetime container
     /// (per ADR-0009's Respawn-based isolation, mirrored from <c>PersistenceTests/DatabaseFixture</c>).
     /// Migration-seeded reference data (§16.4) must survive a reset.

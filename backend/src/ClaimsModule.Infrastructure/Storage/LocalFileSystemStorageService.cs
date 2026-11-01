@@ -19,7 +19,9 @@ public class LocalFileSystemStorageService(IOptions<LocalStorageOptions> options
         var fullPath = Path.Combine(options.Value.RootPath, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
-        await using var fileStream = File.Create(fullPath);
+        // FileMode.CreateNew (not .Create) — a defensive backstop against ever silently overwriting
+        // an existing document's bytes if the caller's own uniqueness guarantee is ever violated.
+        await using var fileStream = new FileStream(fullPath, FileMode.CreateNew);
         await content.CopyToAsync(fileStream, cancellationToken);
 
         return $"/uploads/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}";

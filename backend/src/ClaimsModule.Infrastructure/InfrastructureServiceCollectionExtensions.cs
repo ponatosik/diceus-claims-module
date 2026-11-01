@@ -60,9 +60,18 @@ public static class InfrastructureServiceCollectionExtensions
             new BlobClientOptions(BlobClientOptions.ServiceVersion.V2023_08_03)));
         services.AddScoped<AzureBlobStorageService>();
         services.AddScoped<IStorageService>(sp =>
-            sp.GetRequiredService<IConfiguration>().GetValue("StorageProvider", "AzureBlob") == "LocalFileSystem"
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            // BR-D-03: "If Azure Blob Storage is not configured, fall back to local filesystem" —
+            // an empty/missing connection string IS "not configured", regardless of what
+            // StorageProvider says, so a default appsettings.json (no real Azure credentials filled
+            // in) falls back automatically instead of throwing on every upload/list request.
+            var azureConfigured = !string.IsNullOrWhiteSpace(config.GetConnectionString("AzureBlobStorage"));
+            var useLocal = config.GetValue("StorageProvider", "AzureBlob") == "LocalFileSystem" || !azureConfigured;
+            return useLocal
                 ? sp.GetRequiredService<LocalFileSystemStorageService>()
-                : sp.GetRequiredService<AzureBlobStorageService>());
+                : sp.GetRequiredService<AzureBlobStorageService>();
+        });
 
         return services;
     }

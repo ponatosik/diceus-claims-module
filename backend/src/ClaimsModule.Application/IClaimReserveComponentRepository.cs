@@ -26,6 +26,13 @@ public interface IClaimReserveComponentRepository
 
     Task<ReserveHistory?> GetHistoryByIdAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// A fresh, untracked read of just this one column — used to distinguish "another writer already
+    /// posted this" (a genuine race) from any other concurrency conflict after a failed save, without
+    /// returning the same stale tracked instance the failed save already has in the change tracker.
+    /// </summary>
+    Task<ReservePostingStatus?> GetHistoryPostingStatusAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ReserveHistory>> ListHistoryByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default);
 
     /// <summary>1 + the count of existing ReserveHistory rows for this component (or 1 if none exist yet) — ADR-0005's per-component ChangeSequence.</summary>

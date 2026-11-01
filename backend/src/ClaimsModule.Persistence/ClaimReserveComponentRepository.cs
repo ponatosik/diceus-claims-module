@@ -44,6 +44,13 @@ public class ClaimReserveComponentRepository(ClaimsDbContext dbContext, IUnitOfW
     public Task<ReserveHistory?> GetHistoryByIdAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default) =>
         dbContext.ReserveHistoryEntries.FirstOrDefaultAsync(h => h.ReserveHistoryId == reserveHistoryId, cancellationToken);
 
+    public Task<ReservePostingStatus?> GetHistoryPostingStatusAsync(Guid reserveHistoryId, CancellationToken cancellationToken = default) =>
+        dbContext.ReserveHistoryEntries
+            .AsNoTracking()
+            .Where(h => h.ReserveHistoryId == reserveHistoryId)
+            .Select(h => (ReservePostingStatus?)h.PostingStatus)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<IReadOnlyList<ReserveHistory>> ListHistoryByClaimIdAsync(Guid claimId, CancellationToken cancellationToken = default) =>
         await dbContext.ReserveHistoryEntries
             .Where(h => h.ClaimId == claimId)

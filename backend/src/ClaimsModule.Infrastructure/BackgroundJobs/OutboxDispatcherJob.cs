@@ -2,6 +2,7 @@ using System.Text.Json;
 using ClaimsModule.Application;
 using ClaimsModule.Domain;
 using Hangfire;
+using Microsoft.Extensions.Logging;
 
 namespace ClaimsModule.Infrastructure.BackgroundJobs;
 
@@ -10,14 +11,26 @@ namespace ClaimsModule.Infrastructure.BackgroundJobs;
 /// Marks each message processed only after a successful enqueue; a crash between the two is safe
 /// because <see cref="PostGLReserveChangeJob"/> is itself idempotent on the enqueued arguments.
 /// </summary>
-public class OutboxDispatcherJob(IOutboxRepository outboxRepository, IBackgroundJobClient backgroundJobClient)
+public class OutboxDispatcherJob(
+    IOutboxRepository outboxRepository, IBackgroundJobClient backgroundJobClient, ILogger<OutboxDispatcherJob> logger)
 {
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var messages = await outboxRepository.ListUnprocessedAsync(cancellationToken);
         foreach (var message in messages)
         {
-            await DispatchAsync(message);
+            try
+            {
+                await DispatchAsync(message);
+            }
+            catch (Exception exception)
+            {
+                // One malformed/undeserialisable row must never block every other unprocessed row
+                // behind it in the batch, nor the commit of the ones that already succeeded this
+                // run — leave it unprocessed (ProcessedAt stays null) so it's visible and retried,
+                // rather than silently dropped or stalling the whole dispatcher forever.
+                logger.LogError(exception, "Failed to dispatch OutboxMessage {OutboxMessageId} of type {Type}", message.OutboxMessageId, message.Type);
+            }
         }
 
         await outboxRepository.CommitChangesAsync(cancellationToken);

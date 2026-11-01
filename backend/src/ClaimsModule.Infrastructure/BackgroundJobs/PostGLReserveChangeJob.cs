@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
 using ClaimsModule.Domain;
@@ -31,11 +32,17 @@ public class PostGLReserveChangeJob(
         history.PostingStatus = ReservePostingStatus.Posted;
         history.PostingJobId = postingJobId;
 
+        // Pinned to en-US, not the host's current culture — a Hangfire worker runs under whatever
+        // culture was ambient when the job was enqueued (its CaptureCultureAttribute default), which
+        // must never leak into a permanent audit record's formatting. InvariantCulture's own "C"
+        // format has no actual currency symbol (renders "¤"), so en-US is pinned explicitly instead.
+        var journalDetail =
+            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {history.Amount.ToString("C", CultureInfo.GetCultureInfo("en-US"))}.";
+
         using var activity = BackgroundJobActivitySource.Source.StartActivity(nameof(PostGLReserveChangeJob));
         await auditLogService.LogAsync(new AuditLogEntry(
-            history.ClaimId, "GL_POSTING_SIMULATED",
-            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {history.Amount:C}.",
-            null, null, history.ReserveHistoryId, "ReserveHistory"));
+            history.ClaimId, "GL_POSTING_SIMULATED", journalDetail,
+            null, journalDetail, history.ReserveHistoryId, "ReserveHistory"));
 
         try
         {
@@ -43,13 +50,18 @@ public class PostGLReserveChangeJob(
         }
         catch (DbUpdateConcurrencyException)
         {
-            // ADR-0005's race backstop: a second near-simultaneous execution lost the race on
+            // ADR-0005's race backstop: a second near-simultaneous execution can lose the race on
             // ReserveHistory's RowVer concurrency token (added in Slice C's review fix pass). ADR-0005
             // itself describes this backstop as a unique-constraint violation on IdempotencyKey,
-            // written before that token existed; RowVer now serves the identical purpose — the first
-            // writer to reach PostingStatus=Posted wins, the second's update of the same row is
-            // rejected — without a redundant marker table. Treat as already-processed, not a genuine
-            // failure: never let Hangfire retry a race that already succeeded elsewhere.
+            // written before that token existed; RowVer now serves a similar purpose, but a RowVer
+            // conflict fires for ANY concurrent modification of the row, not only "someone else already
+            // posted it" — so re-check the actual outcome before deciding this was a benign race rather
+            // than a genuine conflict that still needs to be retried.
+            var postingStatus = await reserveComponentRepository.GetHistoryPostingStatusAsync(reserveHistoryId);
+            if (postingStatus != ReservePostingStatus.Posted)
+            {
+                throw;
+            }
         }
     }
 }

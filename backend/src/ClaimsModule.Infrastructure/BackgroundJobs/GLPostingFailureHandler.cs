@@ -26,7 +26,7 @@ public class GLPostingFailureHandler(
         using var activity = BackgroundJobActivitySource.Source.StartActivity(nameof(GLPostingFailureHandler));
         await auditLogService.LogAsync(new AuditLogEntry(
             history.ClaimId, "GL_POSTING_FAILED", $"GL posting failed after exhausting retries: {failureReason}",
-            null, null, history.ReserveHistoryId, "ReserveHistory"), cancellationToken);
+            null, failureReason, history.ReserveHistoryId, "ReserveHistory"), cancellationToken);
 
         await reserveComponentRepository.CommitChangesAsync(cancellationToken);
     }

@@ -90,15 +90,27 @@ public class OutboxDispatcherJobTests(ApiFixture fixture) : ApiTestBase(fixture)
         await secondScope.ServiceProvider.GetRequiredService<OutboxDispatcherJob>().DispatchAsync(secondMessage);
         await secondScope.ServiceProvider.GetRequiredService<IOutboxRepository>().CommitChangesAsync();
 
-        // Both dispatches enqueued a real PostGLReserveChangeJob execution; run both directly
-        // (bypassing Hangfire's own scheduler per this slice's testing decision) to prove the
-        // duplicate enqueue is harmless end-to-end, not just that the dispatcher didn't throw.
+        // Read back what the dispatcher actually put into Hangfire's real storage — not fabricated
+        // arguments — so this test genuinely proves the double-dispatch enqueued two real jobs with
+        // the right payload, not just that calling PostGLReserveChangeJob twice is idempotent (that's
+        // already covered by GLPostingJobTests).
+        var jobStorage = Fixture.Services.GetRequiredService<JobStorage>();
+        var enqueuedJobs = jobStorage.GetMonitoringApi().EnqueuedJobs("default", 0, 50)
+            .Where(j => j.Value.Job?.Type == typeof(PostGLReserveChangeJob))
+            .ToList();
+        Assert.Equal(2, enqueuedJobs.Count);
+        Assert.All(enqueuedJobs, j => Assert.Equal(opened.ReserveHistoryId, (Guid)j.Value.Job!.Args[0]!));
+
+        // Run both of the real enqueued jobs directly (bypassing Hangfire's own scheduler per this
+        // slice's testing decision) to prove the duplicate enqueue is harmless end-to-end.
         using var jobScope1 = Fixture.Services.CreateScope();
         using var jobScope2 = Fixture.Services.CreateScope();
-        await jobScope1.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>()
-            .ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-1");
-        await jobScope2.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>()
-            .ExecuteAsync(opened.ReserveHistoryId, opened.ReserveHistoryId.ToString(), "job-2");
+        var job1 = jobScope1.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
+        var job2 = jobScope2.ServiceProvider.GetRequiredService<PostGLReserveChangeJob>();
+        await job1.ExecuteAsync(
+            (Guid)enqueuedJobs[0].Value.Job!.Args[0]!, (string)enqueuedJobs[0].Value.Job!.Args[1]!, (string)enqueuedJobs[0].Value.Job!.Args[2]!);
+        await job2.ExecuteAsync(
+            (Guid)enqueuedJobs[1].Value.Job!.Args[0]!, (string)enqueuedJobs[1].Value.Job!.Args[1]!, (string)enqueuedJobs[1].Value.Job!.Args[2]!);
 
         Assert.Equal(1, await CountAuditEntriesAsync(client, claim.ClaimId, "GL_POSTING_SIMULATED"));
     }

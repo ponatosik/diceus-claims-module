@@ -68,7 +68,7 @@ public class GLPostingJobTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         var audit = await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claim.ClaimId}/audit");
         var entry = Assert.Single(audit!.Items, a => a.EventType == "GL_POSTING_SIMULATED");
-        Assert.Contains("5", entry.Description); // the $5,000 amount formatted into the description
+        Assert.Equal("DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = $5,000.00.", entry.Description);
     }
 
     [Fact]

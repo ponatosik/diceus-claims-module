@@ -4,7 +4,10 @@ using ClaimsModule.Application.Claims.ApproveReserve;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Claims.OpenReserve;
+using ClaimsModule.Application.Claims.RejectReserve;
 using ClaimsModule.Application.Claims.RemoveClaimParty;
+using ClaimsModule.Application.Claims.RetractReserve;
+using ClaimsModule.Application.Claims.SetReserveOverride;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Domain;
 using MediatR;
@@ -121,5 +124,27 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new ApproveReserveCommand(id, txnId), cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves/{txnId:guid}/reject")]
+    public async Task<ActionResult<ReserveTransactionDto>> RejectReserve(
+        Guid id, Guid txnId, [FromBody] RejectReserveRequestBody body, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new RejectReserveCommand(id, txnId, body.RejectionReason), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves/{txnId:guid}/retract")]
+    public async Task<ActionResult<ReserveTransactionDto>> RetractReserve(Guid id, Guid txnId, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new RetractReserveCommand(id, txnId), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves/override")]
+    public async Task<IActionResult> SetReserveOverride(Guid id, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new SetReserveOverrideCommand(id), cancellationToken);
+        return NoContent();
     }
 }

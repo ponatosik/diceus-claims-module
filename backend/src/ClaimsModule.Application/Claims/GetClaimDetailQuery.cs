@@ -49,6 +49,7 @@ public class GetClaimDetailQueryHandler(
                 r.ReserveComponentId, r.Component.ToString(), r.CurrentAmount, r.Status.ToString())).ToList(),
             documents.Select(d => new ClaimDocumentDto(
                 d.ClaimDocumentId, d.DocumentName, d.DocumentType, d.UploadedAt)).ToList(),
-            recentAuditEntries.Select(a => new AuditLogEntryDto(a.CreatedAt, a.EventType, a.Description)).ToList());
+            recentAuditEntries.Select(a => new AuditLogEntryDto(a.CreatedAt, a.EventType, a.Description)).ToList(),
+            claim.ReserveOverrideApproved);
     }
 }

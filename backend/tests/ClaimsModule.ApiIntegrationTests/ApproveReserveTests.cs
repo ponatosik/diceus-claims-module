@@ -65,14 +65,10 @@ public class ApproveReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
         await command.ExecuteNonQueryAsync();
     }
 
-    private async Task SetReserveOverrideViaSqlAsync(Guid claimId)
+    private async Task SetReserveOverrideAsync(Guid claimId)
     {
-        await using var connection = new SqlConnection(Fixture.ClaimsConnectionString);
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE Claims SET ReserveOverrideApproved = 1 WHERE ClaimId = @claimId";
-        command.Parameters.AddWithValue("@claimId", claimId);
-        await command.ExecuteNonQueryAsync();
+        using var managerClient = Fixture.CreateAuthenticatedClient("manager");
+        await managerClient.PostAsync($"/api/claims/{claimId}/reserves/override", null);
     }
 
     [Fact]
@@ -176,7 +172,7 @@ public class ApproveReserveTests(ApiFixture fixture) : ApiTestBase(fixture)
         var body = await blocked.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.Contains(body!.BlockingConditions!, c => c.Code == "BR-R-05");
 
-        await SetReserveOverrideViaSqlAsync(claim.ClaimId);
+        await SetReserveOverrideAsync(claim.ClaimId);
 
         var allowed = await ApproveReserveAsync(supervisorClient, claim.ClaimId, opened.ReserveHistoryId);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);

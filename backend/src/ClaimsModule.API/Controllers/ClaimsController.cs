@@ -3,6 +3,7 @@ using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Claims.RemoveClaimParty;
+using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -78,5 +79,13 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new RemoveClaimPartyCommand(id, partyId), cancellationToken);
         return NoContent();
+    }
+
+    [HttpPut("{id:guid}/status")]
+    public async Task<ActionResult<ClaimDto>> TransitionClaimStatus(Guid id, [FromBody] TransitionClaimStatusCommand command, CancellationToken cancellationToken)
+    {
+        command.ClaimId = id;
+        var result = await mediator.Send(command, cancellationToken);
+        return Ok(result);
     }
 }

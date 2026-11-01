@@ -211,6 +211,11 @@ namespace ClaimsModule.Persistence.Migrations
                         .HasPrecision(7)
                         .HasColumnType("datetimeoffset(7)");
 
+                    b.Property<bool>("ReserveOverrideApproved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<byte[]>("RowVer")
                         .IsConcurrencyToken()
                         .IsRequired()

@@ -23,6 +23,9 @@ public class Claim : AuditableEntity
     public string? ClosureReason { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>Manager sign-off that this claim's approved reserves may exceed $10,000,000 (BR-R-05).</summary>
+    public bool ReserveOverrideApproved { get; set; }
+
     /// <summary>Optimistic concurrency token (§16.1 — RowVer required on aggregate roots).</summary>
     public byte[] RowVer { get; set; } = [];
 

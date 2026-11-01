@@ -39,6 +39,8 @@ public class ClaimConfiguration : IEntityTypeConfiguration<Claim>
         builder.Property(c => c.ClosureReason).HasMaxLength(500);
         builder.Property(c => c.Notes).HasColumnType("NVARCHAR(MAX)");
 
+        builder.Property(c => c.ReserveOverrideApproved).IsRequired().HasDefaultValue(false);
+
         builder.Property(c => c.RowVer).IsRowVersion();
 
         builder.HasOne<Policy>().WithMany().HasForeignKey(c => c.PolicyId).OnDelete(DeleteBehavior.Restrict);

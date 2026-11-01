@@ -1,4 +1,5 @@
 using ClaimsModule.Application.Claims;
+using ClaimsModule.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,14 @@ public class ReferenceController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<ClaimStatusDto>>> GetClaimStatuses(CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new ListClaimStatusesQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("cause-of-loss-codes")]
+    public async Task<ActionResult<List<CauseOfLossCodeDto>>> GetCauseOfLossCodes(
+        [FromQuery] PerilCategory? perilCategory, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ListCauseOfLossCodesQuery(perilCategory), cancellationToken);
         return Ok(result);
     }
 }

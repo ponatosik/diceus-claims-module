@@ -1,6 +1,8 @@
 using ClaimsModule.Application.Claims;
+using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
+using ClaimsModule.Application.Claims.RemoveClaimParty;
 using ClaimsModule.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -61,5 +63,20 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(
             new GetClaimAuditLogQuery(id, page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize), cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/parties")]
+    public async Task<ActionResult<ClaimPartyDto>> AddClaimParty(Guid id, [FromBody] AddClaimPartyCommand command, CancellationToken cancellationToken)
+    {
+        command.ClaimId = id;
+        var result = await mediator.Send(command, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    [HttpDelete("{id:guid}/parties/{partyId:guid}")]
+    public async Task<IActionResult> RemoveClaimParty(Guid id, Guid partyId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new RemoveClaimPartyCommand(id, partyId), cancellationToken);
+        return NoContent();
     }
 }

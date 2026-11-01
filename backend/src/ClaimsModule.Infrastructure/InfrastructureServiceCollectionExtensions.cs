@@ -1,3 +1,4 @@
+using ClaimsModule.Infrastructure.BackgroundJobs;
 using Hangfire;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,15 +16,22 @@ public static class InfrastructureServiceCollectionExtensions
             .UseSqlServerStorage(configuration.GetConnectionString("HangfireDatabase")));
         services.AddHangfireServer();
 
+        services.AddScoped<PostGLReserveChangeJob>();
+        services.AddScoped<GLPostingFailureHandler>();
+
         return services;
     }
 
     /// <summary>
     /// Registers global job filters and recurring jobs — called once after the app is built, since
-    /// Hangfire's recurring-job registration needs storage already configured. Empty for now; each
-    /// background-job task in this slice appends one line.
+    /// Hangfire's recurring-job registration needs storage already configured. Each background-job
+    /// task in this slice appends one line.
     /// </summary>
     public static void UseInfrastructure(this IServiceProvider services)
     {
+        if (!GlobalJobFilters.Filters.Any(f => f.Instance is GLPostingFailureFilter))
+        {
+            GlobalJobFilters.Filters.Add(new GLPostingFailureFilter(services));
+        }
     }
 }

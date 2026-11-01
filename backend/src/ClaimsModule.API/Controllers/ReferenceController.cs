@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Claims;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

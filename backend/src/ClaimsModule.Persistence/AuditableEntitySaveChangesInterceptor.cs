@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Common;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

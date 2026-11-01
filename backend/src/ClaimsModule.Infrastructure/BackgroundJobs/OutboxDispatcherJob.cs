@@ -1,6 +1,8 @@
 using System.Text.Json;
 using ClaimsModule.Application;
-using ClaimsModule.Domain;
+using ClaimsModule.Application.Common;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 

@@ -3,7 +3,8 @@ using System.Net.Http.Json;
 using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Microsoft.Data.SqlClient;
 
 namespace ClaimsModule.ApiIntegrationTests;

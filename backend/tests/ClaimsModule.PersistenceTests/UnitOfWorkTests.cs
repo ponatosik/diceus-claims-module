@@ -1,5 +1,8 @@
+using ClaimsModule.Persistence.Repositories;
 using ClaimsModule.Application;
-using ClaimsModule.Domain;
+using ClaimsModule.Application.Common;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using ClaimsModule.Persistence;
 using Microsoft.EntityFrameworkCore;
 

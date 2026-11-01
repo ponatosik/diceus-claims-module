@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using ClaimsModule.Infrastructure.BackgroundJobs;
 using ClaimsModule.Infrastructure.Storage;
 using Hangfire;

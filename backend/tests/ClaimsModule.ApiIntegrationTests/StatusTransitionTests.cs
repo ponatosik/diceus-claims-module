@@ -7,7 +7,8 @@ using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Claims.OpenReserve;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Application.Policies;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Microsoft.Data.SqlClient;
 
 namespace ClaimsModule.ApiIntegrationTests;

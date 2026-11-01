@@ -3,6 +3,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 
 namespace ClaimsModule.Infrastructure.Storage;
 

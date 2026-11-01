@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Claims;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.UnitTests;
 

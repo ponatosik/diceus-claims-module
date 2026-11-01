@@ -1,6 +1,7 @@
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Common;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using FluentValidation.Results;
 using MediatR;
 

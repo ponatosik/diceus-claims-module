@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Claims.Dtos;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using MediatR;
 
 namespace ClaimsModule.Application.Claims.TransitionClaimStatus;

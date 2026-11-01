@@ -1,5 +1,8 @@
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using NetArchTest.Rules;
 
 namespace ClaimsModule.UnitTests;

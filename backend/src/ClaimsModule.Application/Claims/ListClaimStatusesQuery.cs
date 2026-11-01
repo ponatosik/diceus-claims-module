@@ -1,4 +1,5 @@
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using MediatR;
 
 namespace ClaimsModule.Application.Claims;

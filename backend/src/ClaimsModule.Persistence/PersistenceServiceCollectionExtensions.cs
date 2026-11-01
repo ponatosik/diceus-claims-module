@@ -1,5 +1,6 @@
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
+using ClaimsModule.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

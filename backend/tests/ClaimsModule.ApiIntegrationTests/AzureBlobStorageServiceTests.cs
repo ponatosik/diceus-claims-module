@@ -1,6 +1,7 @@
 using System.Text;
 using Azure;
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -1,4 +1,5 @@
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using Microsoft.Extensions.Options;
 
 namespace ClaimsModule.Infrastructure.Storage;

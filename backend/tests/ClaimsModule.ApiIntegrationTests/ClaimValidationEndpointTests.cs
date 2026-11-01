@@ -4,7 +4,8 @@ using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Policies;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.ApiIntegrationTests;
 

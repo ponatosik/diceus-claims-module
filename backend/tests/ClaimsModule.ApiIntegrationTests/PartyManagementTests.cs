@@ -4,7 +4,8 @@ using ClaimsModule.API.Middleware;
 using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.ApiIntegrationTests;
 

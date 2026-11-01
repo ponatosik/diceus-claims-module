@@ -1,4 +1,5 @@
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using ClaimsModule.Infrastructure;
 using ClaimsModule.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;

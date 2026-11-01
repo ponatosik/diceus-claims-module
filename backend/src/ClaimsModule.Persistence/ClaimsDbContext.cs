@@ -1,5 +1,6 @@
 using System.Reflection;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClaimsModule.Persistence;

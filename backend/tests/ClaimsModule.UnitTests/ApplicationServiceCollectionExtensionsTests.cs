@@ -1,4 +1,5 @@
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 

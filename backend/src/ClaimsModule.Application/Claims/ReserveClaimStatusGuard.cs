@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Common.Exceptions;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Claims;
 

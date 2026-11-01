@@ -1,4 +1,5 @@
 using ClaimsModule.Application;
+using ClaimsModule.Application.Common;
 using ClaimsModule.Persistence;
 using Microsoft.EntityFrameworkCore;
 

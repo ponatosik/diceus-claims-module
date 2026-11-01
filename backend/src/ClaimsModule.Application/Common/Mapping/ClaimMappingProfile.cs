@@ -1,6 +1,7 @@
 using AutoMapper;
 using ClaimsModule.Application.Claims.Dtos;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Common.Mapping;
 

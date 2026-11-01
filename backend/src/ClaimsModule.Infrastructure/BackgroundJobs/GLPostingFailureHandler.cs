@@ -1,6 +1,7 @@
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Infrastructure.BackgroundJobs;
 

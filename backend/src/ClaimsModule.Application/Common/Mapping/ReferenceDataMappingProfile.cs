@@ -1,7 +1,8 @@
 using AutoMapper;
 using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Policies;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Common.Mapping;
 

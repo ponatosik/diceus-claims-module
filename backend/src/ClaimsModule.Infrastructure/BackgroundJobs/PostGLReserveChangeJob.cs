@@ -1,7 +1,8 @@
 using System.Globalization;
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
-using ClaimsModule.Domain;
+using ClaimsModule.Domain.Entities;
+using ClaimsModule.Domain.Enums;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 

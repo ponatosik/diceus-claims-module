@@ -1,3 +1,4 @@
+using ClaimsModule.Application.Common;
 using ClaimsModule.Application.Claims.Dtos;
 using ClaimsModule.Application.Common.Exceptions;
 using MediatR;

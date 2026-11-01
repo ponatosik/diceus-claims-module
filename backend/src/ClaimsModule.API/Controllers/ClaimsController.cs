@@ -1,3 +1,4 @@
+using ClaimsModule.API.Models;
 using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.ApproveReserve;
@@ -9,6 +10,7 @@ using ClaimsModule.Application.Claims.RemoveClaimParty;
 using ClaimsModule.Application.Claims.RetractReserve;
 using ClaimsModule.Application.Claims.SetReserveOverride;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
+using ClaimsModule.Application.Claims.UploadClaimDocument;
 using ClaimsModule.Domain;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -146,5 +148,28 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     {
         await mediator.Send(new SetReserveOverrideCommand(id), cancellationToken);
         return NoContent();
+    }
+
+    // Raised above the 50MB business-rule limit (not set equal to it) — a file just over 50MB must
+    // still reach UploadClaimDocumentCommandValidator and get a proper 422, not be rejected by
+    // Kestrel/the multipart parser first as a generic, unvalidated 400 (see Resolved Ambiguity 7).
+    [HttpPost("{id:guid}/documents")]
+    [RequestSizeLimit(60_000_000)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 60_000_000)]
+    public async Task<ActionResult<ClaimDocumentDetailDto>> UploadDocument(
+        Guid id, [FromForm] UploadClaimDocumentRequest request, CancellationToken cancellationToken)
+    {
+        var command = new UploadClaimDocumentCommand
+        {
+            ClaimId = id,
+            DocumentType = request.DocumentType,
+            Notes = request.Notes,
+            FileName = request.File.FileName,
+            ContentType = request.File.ContentType,
+            FileSizeBytes = request.File.Length,
+            Content = request.File.OpenReadStream(),
+        };
+        var result = await mediator.Send(command, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 }

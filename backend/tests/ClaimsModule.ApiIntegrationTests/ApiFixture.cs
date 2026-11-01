@@ -78,6 +78,8 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:ClaimsDatabase"] = _claimsConnectionString,
                 ["ConnectionStrings:HangfireDatabase"] = HangfireConnectionString,
+                ["ConnectionStrings:AzureBlobStorage"] = AzuriteConnectionString,
+                ["StorageProvider"] = "AzureBlob",
                 // Storage/client/recurring-job-manager stay registered (jobs can genuinely be
                 // enqueued against the real Hangfire stand-in database), but the actual background
                 // processing server that dequeues and runs them is disabled — tests trigger jobs

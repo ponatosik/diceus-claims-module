@@ -1,3 +1,5 @@
+using Azure.Storage.Blobs;
+using ClaimsModule.Application;
 using ClaimsModule.Infrastructure.BackgroundJobs;
 using ClaimsModule.Infrastructure.Storage;
 using Hangfire;
@@ -46,6 +48,21 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.Configure<LocalStorageOptions>(configuration.GetSection("LocalStorage"));
         services.AddScoped<LocalFileSystemStorageService>();
+
+        // Lazily resolved, like AddHangfireServer's options callback above — reads IConfiguration at
+        // first resolution (well after WebApplicationFactory's test overrides merge in), not eagerly
+        // here. BlobServiceClient itself is read the same way, as a singleton factory.
+        // Pinned below the SDK's default (latest) service version — Testcontainers' pinned Azurite
+        // image (see ApiFixture) lags newest Azure service API versions, and the default would 400
+        // against it with "API version ... is not supported by Azurite."
+        services.AddSingleton(sp => new BlobServiceClient(
+            sp.GetRequiredService<IConfiguration>().GetConnectionString("AzureBlobStorage"),
+            new BlobClientOptions(BlobClientOptions.ServiceVersion.V2023_08_03)));
+        services.AddScoped<AzureBlobStorageService>();
+        services.AddScoped<IStorageService>(sp =>
+            sp.GetRequiredService<IConfiguration>().GetValue("StorageProvider", "AzureBlob") == "LocalFileSystem"
+                ? sp.GetRequiredService<LocalFileSystemStorageService>()
+                : sp.GetRequiredService<AzureBlobStorageService>());
 
         return services;
     }

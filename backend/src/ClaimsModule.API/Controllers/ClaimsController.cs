@@ -2,6 +2,7 @@ using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
+using ClaimsModule.Application.Claims.OpenReserve;
 using ClaimsModule.Application.Claims.RemoveClaimParty;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Domain;
@@ -97,5 +98,13 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         command.ClaimId = id;
         var result = await mediator.Send(command, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves")]
+    public async Task<ActionResult<ReserveTransactionDto>> OpenReserve(Guid id, [FromBody] OpenReserveCommand command, CancellationToken cancellationToken)
+    {
+        command.ClaimId = id;
+        var result = await mediator.Send(command, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 }

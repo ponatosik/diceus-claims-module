@@ -53,4 +53,13 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new GetClaimDetailQuery(id), cancellationToken);
         return Ok(result);
     }
+
+    [HttpGet("{id:guid}/audit")]
+    public async Task<ActionResult<PagedResult<AuditLogEntryDto>>> GetClaimAuditLog(
+        Guid id, [FromQuery] int page, [FromQuery] int pageSize, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new GetClaimAuditLogQuery(id, page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize), cancellationToken);
+        return Ok(result);
+    }
 }

@@ -1,3 +1,4 @@
+using ClaimsModule.API.Middleware;
 using ClaimsModule.Application;
 using ClaimsModule.Persistence;
 
@@ -11,6 +12,10 @@ builder.Services.AddApplication();
 builder.Services.AddPersistence(builder.Configuration);
 
 var app = builder.Build();
+
+// Must wrap everything else in the pipeline (ADR-0006) so no unhandled exception from auth,
+// routing, or a handler ever falls through to the framework's default error response.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Swagger must stay reachable on the deployed URL, not just in Development
 // (per REQUIREMENTS.md §20.3 — the deployed Swagger/OpenAPI endpoint is a reviewed deliverable).

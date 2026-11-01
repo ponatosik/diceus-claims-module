@@ -4,7 +4,9 @@ using ClaimsModule.API.Middleware;
 using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
+using ClaimsModule.Application.Claims.OpenReserve;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
+using ClaimsModule.Application.Policies;
 using ClaimsModule.Domain;
 using Microsoft.Data.SqlClient;
 
@@ -24,6 +26,28 @@ public class StatusTransitionTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     private async Task<ClaimDto> CreateClaimAsync(HttpClient client) =>
         (await (await client.PostAsJsonAsync("/api/claims", ValidCommand())).Content.ReadFromJsonAsync<ClaimDto>())!;
+
+    /// <summary>OpenReserveCommand requires a linked policy (BR-C-06's consequence) — ValidCommand()'s claims have none.</summary>
+    private async Task<ClaimDto> CreateClaimWithPolicyAsync(HttpClient client)
+    {
+        var policyId = (await client.GetFromJsonAsync<List<PolicySearchResultDto>>("/api/policies/search?q=POL-2024-001001"))!.Single().PolicyId;
+        var command = ValidCommand();
+        command.PolicyId = policyId;
+        return (await (await client.PostAsJsonAsync("/api/claims", command)).Content.ReadFromJsonAsync<ClaimDto>())!;
+    }
+
+    private static async Task<ReserveTransactionDto> OpenReserveAsync(
+        HttpClient client, Guid claimId, ReserveComponentType component, decimal amount)
+    {
+        var response = await client.PostAsJsonAsync($"/api/claims/{claimId}/reserves", new OpenReserveCommand
+        {
+            Component = component,
+            Amount = amount,
+            ChangeReason = "Initial estimate",
+            TransactionType = ReserveTransactionType.Add,
+        });
+        return (await response.Content.ReadFromJsonAsync<ReserveTransactionDto>())!;
+    }
 
     private static Task<HttpResponseMessage> TransitionAsync(
         HttpClient client, Guid claimId, ClaimStatus targetStatus, string? reason = null, string? justificationNote = null) =>
@@ -263,5 +287,55 @@ public class StatusTransitionTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await client.GetAsync("/api/claims?page=-1&pageSize=-5");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // Slice C's own "Further Notes": re-verify these conditions against real reserve data written
+    // through the actual OpenReserveCommand/approve endpoints, not just the raw-SQL rows above —
+    // those stay as cheap, narrowly-scoped proofs of the condition logic itself.
+
+    [Fact]
+    public async Task CC_01_blocks_closure_when_a_real_reserve_is_left_PendingApproval()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 50_000m); // Supervisor tier -> PendingApproval, never approved
+
+        var response = await TransitionAsync(client, claim.ClaimId, ClaimStatus.Closed);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Contains(body!.BlockingConditions!, c => c.Code == "CC-01");
+    }
+
+    [Fact]
+    public async Task Open_to_PendingPayment_succeeds_once_a_real_reserve_has_been_submitted_and_approved()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 5_000m); // <= $10,000 -> AutoApproved immediately
+
+        var response = await TransitionAsync(client, claim.ClaimId, ClaimStatus.PendingPayment);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Closed_succeeds_once_the_real_reserve_is_genuinely_approved_and_nothing_is_pending()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await TransitionAsync(client, claim.ClaimId, ClaimStatus.Open);
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, 5_000m); // AutoApproved -> no PendingApproval rows remain
+
+        // CC-01 is satisfied (nothing PendingApproval), but CC-04 still requires a justification note
+        // since the approved reserve leaves a nonzero balance — this is the real-data equivalent of
+        // StatusTransitionTests' existing CC_04_... test, proving the two conditions compose correctly.
+        var response = await TransitionAsync(client, claim.ClaimId, ClaimStatus.Closed, justificationNote: "Reserve amount is final; no further activity expected.");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ClaimDto>();
+        Assert.Equal("Closed", body!.Status);
     }
 }

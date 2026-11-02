@@ -22,9 +22,6 @@ import {
   toPartyRequest,
 } from '../../shared/forms/party-form';
 
-export type { PartyForm, PartyValue } from '../../shared/forms/party-form';
-export { createPartyForm } from '../../shared/forms/party-form';
-
 /**
  * The FNOL intake form (§11.2): one FormGroup of three step groups. Each step group's control names
  * match the backend's property paths (camelCased), so `applyServerErrors(stepGroup, errors)` can place

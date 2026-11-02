@@ -1,18 +1,18 @@
 import { HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { ReferenceData } from './reference-data';
+import { CachedReferenceData } from './reference-data';
 import { apiTestProviders } from './test-providers';
 
 const URL = 'https://api.test/api/reference/claim-statuses';
 
-describe('ReferenceData', () => {
-  let data: ReferenceData;
+describe('CachedReferenceData', () => {
+  let data: CachedReferenceData;
   let http: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: apiTestProviders });
-    data = TestBed.inject(ReferenceData);
+    data = TestBed.inject(CachedReferenceData);
     http = TestBed.inject(HttpTestingController);
   });
 

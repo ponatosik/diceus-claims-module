@@ -73,8 +73,22 @@ export class TransitionDialog {
     initialValue: undefined,
   });
 
-  /** Blocking conditions from the transition attempt itself (a 422), shown in place. */
+  /** From the transition attempt itself (a 422), shown in place: Blocking Conditions, and field errors kept apart. */
   protected readonly rejection = signal<BlockingCondition[]>([]);
+  protected readonly fieldErrors = signal<string[]>([]);
+
+  /** Closing with open reserves needs a justification — known from the pre-flight, or learned from a CC-04 422. */
+  protected readonly needsJustification = computed(
+    () =>
+      this.preflight()?.requiresJustificationNote === true ||
+      this.rejection().some((condition) => condition.code === 'CC-04'),
+  );
+  protected readonly needsReason = computed(() => this.preflight()?.requiresReason === true);
+
+  /** The checklist only means something for a valid Closed transition. */
+  protected readonly showChecklist = computed(
+    () => this.isClosing && this.preflight()?.isTransitionValid === true,
+  );
 
   protected readonly closureChecks = computed(() => {
     const failing = this.preflight()?.blockingConditions ?? [];
@@ -98,30 +112,29 @@ export class TransitionDialog {
     const preflight = this.preflight();
     if (preflight === undefined || preflight === null || this.submitting.pending()) return false;
     if (!preflight.isTransitionValid || preflight.blockingConditions.length > 0) return false;
-    if (preflight.requiresReason && this.reasonText().trim() === '') return false;
-    if (preflight.requiresJustificationNote && this.justificationText().trim() === '') return false;
+    if (this.needsReason() && this.reasonText().trim() === '') return false;
+    if (this.needsJustification() && this.justificationText().trim() === '') return false;
     return true;
   });
 
   protected confirm(): void {
     if (!this.canConfirm()) return;
-    const preflight = this.preflight()!;
+    // Withdrawal/reopen require a reason; closing takes an optional closure reason (stored as
+    // ClosureReason and in the CLAIM_CLOSED audit entry); other transitions send none.
+    const reason = this.reasonText().trim();
     const request: TransitionRequest = {
       targetStatus: this.data.target,
-      reason: preflight.requiresReason ? this.reasonText().trim() : null,
-      justificationNote: preflight.requiresJustificationNote
-        ? this.justificationText().trim()
-        : null,
+      reason: (this.needsReason() || this.isClosing) && reason !== '' ? reason : null,
+      justificationNote: this.needsJustification() ? this.justificationText().trim() : null,
     };
     this.rejection.set([]);
+    this.fieldErrors.set([]);
     this.submitting.track(this.data.submit(request).pipe(map(() => true))).subscribe({
       next: () => this.dialogRef.close(true),
       error: (error: unknown) => {
         if (isApiError(error)) {
-          const fieldMessages = Object.values(error.errors)
-            .flat()
-            .map((message) => ({ code: '', message }));
-          this.rejection.set([...error.blockingConditions, ...fieldMessages]);
+          this.rejection.set(error.blockingConditions);
+          this.fieldErrors.set(Object.values(error.errors).flat());
         }
       },
     });

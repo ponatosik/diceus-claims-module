@@ -5,7 +5,7 @@ import { ReferenceApi } from './reference-api';
 
 /** Session-cached reference data. The §4.2 transition table never changes at runtime (spec 010 story 2). */
 @Injectable({ providedIn: 'root' })
-export class ReferenceData {
+export class CachedReferenceData {
   private readonly referenceApi = inject(ReferenceApi);
   private cachedClaimStatuses: Observable<ClaimStatusReference[]> | null = null;
 

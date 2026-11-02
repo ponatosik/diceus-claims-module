@@ -155,4 +155,94 @@ describe('TransitionDialog', () => {
     ).toBeTruthy();
     expect(close).not.toHaveBeenCalled();
   });
+
+  it('lets the user record an optional closure reason, which is sent with the close', async () => {
+    const { submit } = await renderDialog({ target: 'Closed', preflight: of(preflight()) });
+
+    await userEvent.type(screen.getByLabelText(/Closure reason/), 'Settled in full.');
+    await userEvent.click(confirmButton());
+
+    expect(submit).toHaveBeenCalledWith({
+      targetStatus: 'Closed',
+      reason: 'Settled in full.',
+      justificationNote: null,
+    });
+  });
+
+  it('shows only the reason a transition is invalid — no misleading checklist', async () => {
+    await renderDialog({
+      target: 'Closed',
+      preflight: of(
+        preflight({
+          isTransitionValid: false,
+          blockingConditions: [
+            { code: 'BR-ST-01', message: 'Transition from Draft to Closed is not permitted.' },
+          ],
+        }),
+      ),
+    });
+
+    expect(screen.getByText('Transition from Draft to Closed is not permitted.')).toBeTruthy();
+    expect(screen.queryByTestId('check-CC-01')).toBeNull();
+    expect(confirmButton().disabled).toBe(true);
+  });
+
+  it('asks for a justification note if CC-04 only shows up when confirming', async () => {
+    const openReserves: ApiError = {
+      kind: 'businessRule',
+      status: 422,
+      message: 'A business rule was violated.',
+      errors: {},
+      blockingConditions: [
+        {
+          code: 'CC-04',
+          message:
+            'This claim has open reserves — provide a justification note to close it anyway.',
+        },
+      ],
+    };
+    const submit = vi.fn<TransitionDialogData['submit']>(() => throwError(() => openReserves));
+    const { fixture } = await renderDialog({
+      target: 'Closed',
+      preflight: of(preflight()),
+      submit,
+    });
+
+    await userEvent.click(confirmButton());
+    await fixture.whenStable();
+    expect(confirmButton().disabled).toBe(true);
+
+    submit.mockReturnValue(of(undefined));
+    await userEvent.type(screen.getByLabelText(/Justification/), 'Recoveries pending.');
+    await userEvent.click(confirmButton());
+
+    expect(submit).toHaveBeenLastCalledWith({
+      targetStatus: 'Closed',
+      reason: null,
+      justificationNote: 'Recoveries pending.',
+    });
+  });
+
+  it('shows field errors from a 422 separately from Blocking Conditions', async () => {
+    const invalid: ApiError = {
+      kind: 'validation',
+      status: 422,
+      message: 'One or more validation errors occurred.',
+      errors: { Reason: ['Reason is too long.'] },
+      blockingConditions: [],
+    };
+    const submit = vi.fn<TransitionDialogData['submit']>(() => throwError(() => invalid));
+    const { fixture } = await renderDialog({
+      target: 'Withdrawn',
+      preflight: of(preflight({ requiresReason: true })),
+      submit,
+    });
+
+    await userEvent.type(screen.getByLabelText(/^Reason/), 'x');
+    await userEvent.click(confirmButton());
+    await fixture.whenStable();
+
+    expect(screen.getByText('Reason is too long.')).toBeTruthy();
+    expect(screen.queryByText(/was rejected/)).toBeNull();
+  });
 });

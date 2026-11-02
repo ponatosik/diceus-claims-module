@@ -6,14 +6,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ASSET_TYPES, partyDisplayName, partyRoleLabel } from '../../shared/domain/labels';
-import {
-  PartyForm,
-  RiskObjectForm,
-  addParty,
-  addRiskObject,
-  createPartyForm,
-  createRiskObjectForm,
-} from './fnol-form';
+import { RiskObjectForm, addParty, addRiskObject, createRiskObjectForm } from './fnol-form';
+import { PartyForm, createPartyForm } from '../../shared/forms/party-form';
 import { PartyFormRow } from '../../shared/ui/party-form-row';
 import { FnolIntakeStore } from './fnol-intake.store';
 

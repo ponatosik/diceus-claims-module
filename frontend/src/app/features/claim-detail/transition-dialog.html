@@ -7,7 +7,7 @@
   } @else if (preflight() === null) {
     <p class="blocked">The transition couldn't be checked. Close this dialog and try again.</p>
   } @else {
-    @if (isClosing) {
+    @if (showChecklist()) {
       <h3>Closure checklist</h3>
       <ul class="checklist" aria-label="Closure checklist">
         @for (check of closureChecks(); track check.code) {
@@ -41,14 +41,19 @@
       </p>
     }
 
-    @if (preflight()!.requiresReason) {
+    @if (needsReason()) {
       <mat-form-field class="full">
         <mat-label>Reason</mat-label>
         <textarea matInput [formControl]="reason" rows="3" required></textarea>
       </mat-form-field>
+    } @else if (showChecklist()) {
+      <mat-form-field class="full">
+        <mat-label>Closure reason (optional)</mat-label>
+        <textarea matInput [formControl]="reason" rows="2"></textarea>
+      </mat-form-field>
     }
 
-    @if (preflight()!.requiresJustificationNote) {
+    @if (needsJustification()) {
       <mat-form-field class="full">
         <mat-label>Justification note (closing with open reserves)</mat-label>
         <textarea matInput [formControl]="justificationNote" rows="3" required></textarea>
@@ -61,6 +66,17 @@
         <ul>
           @for (condition of rejection(); track $index) {
             <li>{{ condition.message }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (fieldErrors().length > 0) {
+      <div class="blocked" role="alert">
+        <strong>Fix these and try again:</strong>
+        <ul>
+          @for (message of fieldErrors(); track $index) {
+            <li>{{ message }}</li>
           }
         </ul>
       </div>

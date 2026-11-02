@@ -47,7 +47,7 @@ test.describe('claim detail — status transitions', () => {
     await confirm.click();
 
     await expect(page.getByTestId('claim-status')).toHaveText('Open');
-    await expect(page.getByText(`${claim.claimNumber} moved to Reopened.`)).toBeVisible();
+    await expect(page.getByText(`${claim.claimNumber} reopened — now Open.`)).toBeVisible();
   });
 
   test('closing shows the pre-flight checklist and closes a clean claim', async ({

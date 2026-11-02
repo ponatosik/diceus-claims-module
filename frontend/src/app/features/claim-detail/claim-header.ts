@@ -8,7 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, filter, of } from 'rxjs';
 import { ClaimDetail } from '../../api/models';
-import { ReferenceData } from '../../api/reference-data';
+import { CachedReferenceData } from '../../api/reference-data';
 import { MockAuthService } from '../../core/auth/mock-auth.service';
 import { NotificationService } from '../../core/errors/notification.service';
 import { ClaimStatus, claimStatusLabel } from '../../shared/domain/claim-status';
@@ -44,7 +44,7 @@ export class ClaimHeader {
   protected readonly statusLabel = claimStatusLabel;
 
   private readonly statusTable = toSignal(
-    inject(ReferenceData)
+    inject(CachedReferenceData)
       .claimStatuses()
       .pipe(catchError(() => of([]))),
     {
@@ -75,7 +75,12 @@ export class ClaimHeader {
       .afterClosed()
       .pipe(filter((changed) => changed === true))
       .subscribe(() =>
-        this.notifications.success(`${claim.claimNumber} moved to ${claimStatusLabel(target)}.`),
+        this.notifications.success(
+          // Reopened is never a resting status: the API moves the claim straight on to Open (BR-ST-04).
+          target === 'Reopened'
+            ? `${claim.claimNumber} reopened — now Open.`
+            : `${claim.claimNumber} moved to ${claimStatusLabel(target)}.`,
+        ),
       );
   }
 

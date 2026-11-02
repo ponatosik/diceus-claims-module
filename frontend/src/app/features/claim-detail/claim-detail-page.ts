@@ -4,13 +4,10 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { Router } from '@angular/router';
 import { Skeleton } from '../../shared/ui/skeleton';
 import { ClaimDetailStore } from './claim-detail.store';
+import { CLAIM_TABS, parseClaimTab } from './claim-tabs';
 import { ClaimHeader } from './claim-header';
 import { ClaimOverviewTab } from './claim-overview-tab';
 import { ClaimPartiesTab } from './claim-parties-tab';
-
-/** Tab keys, deep-linkable as `?tab=` (spec 010; Slice L's audit links target `?tab=…&highlight=<id>`). */
-export const CLAIM_TABS = ['overview', 'parties', 'reserves', 'documents', 'audit'] as const;
-export type ClaimTab = (typeof CLAIM_TABS)[number];
 
 /** §11.3 Claim Detail: always-visible header over five tabbed sections. */
 @Component({
@@ -36,10 +33,7 @@ export class ClaimDetailPage {
   protected readonly store = inject(ClaimDetailStore);
   private readonly router = inject(Router);
 
-  protected readonly selectedIndex = computed(() => {
-    const index = CLAIM_TABS.indexOf(this.tab() as ClaimTab);
-    return index === -1 ? 0 : index;
-  });
+  protected readonly selectedIndex = computed(() => CLAIM_TABS.indexOf(parseClaimTab(this.tab())));
 
   constructor() {
     effect(() => this.store.load(this.claimId()));

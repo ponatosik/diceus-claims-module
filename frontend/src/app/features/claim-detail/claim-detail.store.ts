@@ -93,9 +93,7 @@ export class ClaimDetailStore {
 
   /** The Pre-flight Check (GLOSSARY.md) for a target status — changes nothing. */
   preflight(target: ClaimStatus): Observable<TransitionPreflight> {
-    const claimId = this.claimId();
-    if (claimId === null) throw new Error('No claim loaded.');
-    return this.claimsApi.preflight(claimId, target);
+    return this.claimsApi.preflight(this.requireClaimId(), target);
   }
 
   transition(request: TransitionRequest): Observable<void> {
@@ -116,14 +114,18 @@ export class ClaimDetailStore {
 
   /** Runs a claim mutation, then re-fetches the claim and its audit log (only on success). */
   private mutate(call: (claimId: string) => Observable<unknown>): Observable<void> {
-    const claimId = this.claimId();
-    if (claimId === null) throw new Error('No claim loaded.');
-    return call(claimId).pipe(
+    return call(this.requireClaimId()).pipe(
       tap(() => {
         this.claimRevision.update((n) => n + 1);
         this.auditRevision.update((n) => n + 1);
       }),
       map(() => undefined),
     );
+  }
+
+  private requireClaimId(): string {
+    const claimId = this.claimId();
+    if (claimId === null) throw new Error('No claim loaded.');
+    return claimId;
   }
 }

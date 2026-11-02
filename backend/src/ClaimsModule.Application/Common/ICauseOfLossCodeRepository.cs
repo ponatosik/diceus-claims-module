@@ -8,5 +8,8 @@ public interface ICauseOfLossCodeRepository
 {
     Task<CauseOfLossCode?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
 
+    /// <summary>Code → Name for display, including inactive codes (a claim may reference a since-deactivated code).</summary>
+    Task<IReadOnlyDictionary<string, string>> GetNamesByCodesAsync(IEnumerable<string> codes, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CauseOfLossCode>> ListActiveAsync(PerilCategory? perilCategory, CancellationToken cancellationToken = default);
 }

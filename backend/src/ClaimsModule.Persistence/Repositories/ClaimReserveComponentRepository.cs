@@ -20,6 +20,13 @@ public class ClaimReserveComponentRepository(ClaimsDbContext dbContext, IUnitOfW
         dbContext.ReserveHistoryEntries.AnyAsync(
             h => h.ClaimId == claimId && h.ApprovalStatus == ReserveApprovalStatus.PendingApproval, cancellationToken);
 
+    public async Task<IReadOnlyDictionary<Guid, decimal>> GetPendingAmountsByComponentAsync(Guid claimId, CancellationToken cancellationToken = default) =>
+        await dbContext.ReserveHistoryEntries
+            .Where(h => h.ClaimId == claimId && h.ApprovalStatus == ReserveApprovalStatus.PendingApproval)
+            .GroupBy(h => h.ReserveComponentId)
+            .Select(g => new { ReserveComponentId = g.Key, PendingAmount = g.Sum(h => h.Amount) })
+            .ToDictionaryAsync(x => x.ReserveComponentId, x => x.PendingAmount, cancellationToken);
+
     public Task<bool> AnyReserveHistoryApprovedOrAutoApprovedAsync(Guid claimId, CancellationToken cancellationToken = default) =>
         dbContext.ReserveHistoryEntries.AnyAsync(
             h => h.ClaimId == claimId && (h.ApprovalStatus == ReserveApprovalStatus.Approved || h.ApprovalStatus == ReserveApprovalStatus.AutoApproved),

@@ -5,13 +5,16 @@ namespace ClaimsModule.Application.Common;
 
 /// <summary>Filters for <see cref="IClaimRepository.ListAsync"/> — all optional, combined with AND.</summary>
 public record ClaimListFilter(
-    ClaimStatus? Status = null,
+    IReadOnlyCollection<ClaimStatus>? Statuses = null,
     DateOnly? LossDateFrom = null,
     DateOnly? LossDateTo = null,
     Guid? AssignedHandlerId = null,
     string? CauseOfLossCode = null,
     Guid? PolicyId = null,
-    string? Search = null);
+    string? Search = null,
+    // Non-null restricts to these handlers — an empty collection deliberately matches nothing (a
+    // handler-name search that matched no user must return no claims, not every claim).
+    IReadOnlyCollection<Guid>? AssignedHandlerIds = null);
 
 /// <summary>Repository for the Claim aggregate root (ADR-0003). Query members are added as handlers need them.</summary>
 public interface IClaimRepository

@@ -13,4 +13,9 @@ namespace ClaimsModule.Persistence;
 public static class SeedData
 {
     public static readonly Guid OrganisationId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    // ADR-0010's fixed Demo Users. The frontend's MockAuthService mirrors these ids exactly.
+    public static readonly Guid DemoHandlerUserId = Guid.Parse("00000000-0000-0000-0003-000000000001");
+    public static readonly Guid DemoSupervisorUserId = Guid.Parse("00000000-0000-0000-0003-000000000002");
+    public static readonly Guid DemoManagerUserId = Guid.Parse("00000000-0000-0000-0003-000000000003");
 }

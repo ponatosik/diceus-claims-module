@@ -18,4 +18,7 @@ public record ReserveTransactionDto(
     string ChangeReason,
     string PostingStatus,
     Guid? SubmittedByUserId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? SubmittedByDisplayName,
+    string? ApprovedByDisplayName,
+    string? RejectedByDisplayName);

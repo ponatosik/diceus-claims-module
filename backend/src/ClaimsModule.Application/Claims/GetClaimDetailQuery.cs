@@ -12,7 +12,9 @@ public class GetClaimDetailQueryHandler(
     IClaimRepository claimRepository,
     IClaimReserveComponentRepository reserveComponentRepository,
     IClaimDocumentRepository documentRepository,
-    IAuditLogService auditLogService) : IRequestHandler<GetClaimDetailQuery, ClaimDetailDto>
+    IAuditLogService auditLogService,
+    IUserDirectory userDirectory,
+    ICauseOfLossCodeRepository causeOfLossCodeRepository) : IRequestHandler<GetClaimDetailQuery, ClaimDetailDto>
 {
     private const int RecentAuditEntryCount = 5;
 
@@ -22,8 +24,13 @@ public class GetClaimDetailQueryHandler(
             ?? throw new NotFoundException("Claim", request.ClaimId);
 
         var reserves = await reserveComponentRepository.ListByClaimIdAsync(claim.ClaimId, cancellationToken);
+        var pendingAmounts = await reserveComponentRepository.GetPendingAmountsByComponentAsync(claim.ClaimId, cancellationToken);
         var documents = await documentRepository.ListByClaimIdAsync(claim.ClaimId, cancellationToken);
         var (recentAuditEntries, _) = await auditLogService.GetForClaimAsync(claim.ClaimId, 1, RecentAuditEntryCount, cancellationToken);
+
+        var displayNames = await userDirectory.GetDisplayNamesAsync(
+            [claim.AssignedHandlerId, .. recentAuditEntries.Select(a => a.CreatedByUserId)], cancellationToken);
+        var causeOfLossNames = await causeOfLossCodeRepository.GetNamesByCodesAsync([claim.LossEvent!.CauseOfLossCode], cancellationToken);
 
         return new ClaimDetailDto(
             claim.ClaimId,
@@ -46,10 +53,15 @@ public class GetClaimDetailQueryHandler(
                 r.ClaimRiskObjectId, r.AssetType.ToString(), r.AssetDescription,
                 r.DamageDescription, r.IsPrimary, r.AssetReference))],
             [.. reserves.Select(r => new ReserveSummaryDto(
-                r.ReserveComponentId, r.Component.ToString(), r.CurrentAmount, r.Status.ToString()))],
+                r.ReserveComponentId, r.Component.ToString(), r.CurrentAmount, r.Status.ToString(),
+                pendingAmounts.GetValueOrDefault(r.ReserveComponentId)))],
             [.. documents.Select(d => new ClaimDocumentDto(
                 d.ClaimDocumentId, d.DocumentName, d.DocumentType, d.UploadedAt))],
-            [.. recentAuditEntries.Select(a => new AuditLogEntryDto(a.CreatedAt, a.EventType, a.Description))],
-            claim.ReserveOverrideApproved);
+            AuditLogEntryMapper.ToDtos(recentAuditEntries, displayNames),
+            claim.ReserveOverrideApproved,
+            claim.Severity?.ToString(),
+            claim.Notes,
+            claim.AssignedHandlerId is { } handlerId ? new UserSummaryDto(handlerId, displayNames.GetValueOrDefault(handlerId)) : null,
+            causeOfLossNames.GetValueOrDefault(claim.LossEvent.CauseOfLossCode));
     }
 }

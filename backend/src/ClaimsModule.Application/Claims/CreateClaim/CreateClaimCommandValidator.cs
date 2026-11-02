@@ -91,6 +91,19 @@ public class CreateClaimCommandValidator : AbstractValidator<CreateClaimCommand>
             party.RuleFor(p => p.CompanyName).NotEmpty().When(p => p.PartyType == PartyType.Company);
         });
 
+        // Initial reserve (spec 006 story 7): same field rules as POST /reserves, and — exactly as there
+        // (BR-C-06's consequence) — a hard block without a resolvable policy, even though a missing
+        // policy is only a Warning for the claim itself.
+        RuleFor(x => x.InitialReserve!)
+            .SetValidator(new ReserveChangeRules())
+            .When(x => x.InitialReserve is not null);
+
+        RuleFor(x => x.InitialReserve)
+            .MustAsync(async (command, _, cancellationToken) =>
+                command.PolicyId is { } policyId && await policyRepository.GetByIdAsync(policyId, cancellationToken) is not null)
+            .When(x => x.InitialReserve is not null)
+            .WithMessage("No policy linked. Policy must be associated before reserves can be set.");
+
         RuleForEach(x => x.RiskObjects).ChildRules(riskObject =>
         {
             riskObject.RuleFor(r => r.AssetDescription).NotEmpty();

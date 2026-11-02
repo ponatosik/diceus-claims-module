@@ -8,8 +8,10 @@ using ClaimsModule.Application.Claims.OpenReserve;
 using ClaimsModule.Application.Claims.RejectReserve;
 using ClaimsModule.Application.Claims.RemoveClaimParty;
 using ClaimsModule.Application.Claims.RetractReserve;
+using ClaimsModule.Application.Claims.RetryGLPosting;
 using ClaimsModule.Application.Claims.SetReserveOverride;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
+using ClaimsModule.Application.Claims.UpdateClaimNotes;
 using ClaimsModule.Application.Claims.UploadClaimDocument;
 using ClaimsModule.Domain.Entities;
 using ClaimsModule.Domain.Enums;
@@ -40,10 +42,12 @@ public class ClaimsController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<ClaimSummaryDto>>> ListClaims(
-        [FromQuery] ClaimStatus? status,
+        // Repeated query parameter (?status=Open&status=Closed) — §11.1's multi-select status filter.
+        [FromQuery] ClaimStatus[]? status,
         [FromQuery] DateOnly? dateFrom,
         [FromQuery] DateOnly? dateTo,
         [FromQuery] Guid? assignedHandlerId,
+        [FromQuery] string? assignedHandler,
         [FromQuery] string? causeOfLossCode,
         [FromQuery] Guid? policyId,
         [FromQuery] string? search,
@@ -54,7 +58,7 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var query = new ListClaimsQuery(
             status, dateFrom, dateTo, assignedHandlerId, causeOfLossCode, policyId, search,
-            normalizedPage, normalizedPageSize);
+            normalizedPage, normalizedPageSize, assignedHandler);
         var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
@@ -107,6 +111,22 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:guid}/status/preflight")]
+    public async Task<ActionResult<TransitionPreflightDto>> GetTransitionPreflight(
+        Guid id, [FromQuery] ClaimStatus target, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetTransitionPreflightQuery(id, target), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPatch("{id:guid}/notes")]
+    public async Task<IActionResult> UpdateClaimNotes(Guid id, [FromBody] UpdateClaimNotesCommand command, CancellationToken cancellationToken)
+    {
+        command.ClaimId = id;
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/reserves")]
     public async Task<ActionResult<ReserveTransactionDto>> OpenReserve(Guid id, [FromBody] OpenReserveCommand command, CancellationToken cancellationToken)
     {
@@ -141,6 +161,13 @@ public class ClaimsController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<ReserveTransactionDto>> RetractReserve(Guid id, Guid txnId, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new RetractReserveCommand(id, txnId), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reserves/{txnId:guid}/retry-posting")]
+    public async Task<ActionResult<ReserveTransactionDto>> RetryGLPosting(Guid id, Guid txnId, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new RetryGLPostingCommand(id, txnId), cancellationToken);
         return Ok(result);
     }
 

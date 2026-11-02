@@ -87,6 +87,7 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
                 // decision), and a live server racing a test's own assertions, or racing Respawn's
                 // reset of the same database between tests, would be a second source of races.
                 ["Hangfire:StartServer"] = "false",
+                ["DevAuth:Enabled"] = "true",
                 [$"{JwtOptions.SectionName}:Issuer"] = TestJwtOptions.Issuer,
                 [$"{JwtOptions.SectionName}:Audience"] = TestJwtOptions.Audience,
                 [$"{JwtOptions.SectionName}:SigningKey"] = TestJwtOptions.SigningKey,
@@ -137,7 +138,7 @@ public class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             _respawner = await Respawner.CreateAsync(_respawnConnection, new RespawnerOptions
             {
                 DbAdapter = DbAdapter.SqlServer,
-                TablesToIgnore = [new Respawn.Graph.Table("CauseOfLossCodes"), new Respawn.Graph.Table("Policies")],
+                TablesToIgnore = [new Respawn.Graph.Table("CauseOfLossCodes"), new Respawn.Graph.Table("Policies"), new Respawn.Graph.Table("Users")],
             });
         }
 

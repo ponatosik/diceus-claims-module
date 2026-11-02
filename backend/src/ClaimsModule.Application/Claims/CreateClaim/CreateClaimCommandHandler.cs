@@ -13,6 +13,7 @@ public class CreateClaimCommandHandler(
     IClaimNumberGenerator claimNumberGenerator,
     IAuditLogService auditLogService,
     ICurrentUserService currentUserService,
+    ReserveTransactionRecorder reserveTransactionRecorder,
     IMapper mapper) : IRequestHandler<CreateClaimCommand, ClaimDto>
 {
     public async Task<ClaimDto> Handle(CreateClaimCommand request, CancellationToken cancellationToken)
@@ -79,6 +80,14 @@ public class CreateClaimCommandHandler(
                 new AuditLogEntry(claim.ClaimId, "VALIDATION_ISSUE_ADDED", warning.ErrorMessage), cancellationToken);
         }
 
+        if (request.InitialReserve is { } initialReserve)
+        {
+            await reserveTransactionRecorder.RecordAsync(
+                claim, initialReserve.Component, initialReserve.Amount, initialReserve.ChangeReason,
+                ReserveTransactionType.Add, cancellationToken);
+        }
+
+        // One commit for claim, children, initial reserve, outbox message and every audit entry (ADR-0003).
         await claimRepository.CommitChangesAsync(cancellationToken);
 
         return mapper.Map<ClaimDto>(claim);

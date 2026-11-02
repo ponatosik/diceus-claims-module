@@ -15,4 +15,5 @@ public record ClaimDocumentDetailDto(
     DateTimeOffset UploadedAt,
     Guid? UploadedByUserId,
     string? Notes,
-    string DownloadUrl);
+    string DownloadUrl,
+    string? UploadedByDisplayName);

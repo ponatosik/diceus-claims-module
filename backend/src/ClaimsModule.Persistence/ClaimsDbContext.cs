@@ -30,6 +30,7 @@ public class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) : DbCont
     public DbSet<ClaimAuditLog> ClaimAuditLogEntries => Set<ClaimAuditLog>();
     public DbSet<CauseOfLossCode> CauseOfLossCodes => Set<CauseOfLossCode>();
     public DbSet<Policy> Policies => Set<Policy>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

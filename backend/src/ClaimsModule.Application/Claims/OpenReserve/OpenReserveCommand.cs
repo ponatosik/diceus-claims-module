@@ -6,7 +6,7 @@ using MediatR;
 namespace ClaimsModule.Application.Claims.OpenReserve;
 
 /// <summary>POST /api/claims/{id}/reserves — opens a new reserve component or adjusts an existing one (§10.2); distinguished by TransactionType.</summary>
-public class OpenReserveCommand : IRequest<ReserveTransactionDto>
+public class OpenReserveCommand : IRequest<ReserveTransactionDto>, IReserveChangeRequest
 {
     public Guid ClaimId { get; set; }
 

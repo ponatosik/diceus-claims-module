@@ -74,19 +74,27 @@ yet, and this document does not pretend otherwise.
    Swagger UI is at `http://localhost:5000/swagger` (or whichever port the console output shows).
    Swagger is reachable in every environment, not just Development, per §20.3.
 
-6. **Authenticate as a test user.** There is no real identity provider (ADR-0007) — in
-   Development/Testing, `POST /api/dev/auth/token` mints a JWT for any of the three roles:
+6. **Authenticate as a demo user.** There is no real identity provider (ADR-0007) — when
+   `DevAuth:Enabled` is `true` (it is in `appsettings.Development.json`), `POST /api/dev/auth/token`
+   mints a JWT for one of three fixed demo users (ADR-0010), taking the role from the seeded
+   `Users` table:
 
    ```bash
    curl -X POST http://localhost:5000/api/dev/auth/token \
      -H "Content-Type: application/json" \
-     -d '{"role": "handler"}'
+     -d '{"userId": "00000000-0000-0000-0003-000000000001"}'
    ```
 
-   Valid `role` values: `handler`, `supervisor`, `manager` (§3). Use the returned
-   `accessToken` as a `Bearer` token — Swagger's "Authorize" button accepts it directly. This
-   endpoint returns `404` outside Development/Testing by design (it must never be mistaken for
-   production-appropriate auth).
+   | `userId` | Display name | Role |
+   |---|---|---|
+   | `00000000-0000-0000-0003-000000000001` | Alex Morgan | `handler` |
+   | `00000000-0000-0000-0003-000000000002` | Priya Shah | `supervisor` |
+   | `00000000-0000-0000-0003-000000000003` | Daniel Okafor | `manager` |
+
+   Use the returned `accessToken` as a `Bearer` token — Swagger's "Authorize" button accepts it
+   directly. The ids are stable, so submitter-only retract and self-approval rejection (BR-R-03)
+   behave consistently across sessions. With `DevAuth:Enabled` off (the default) the endpoint
+   returns `404` — it must never be mistaken for production-appropriate auth.
 
 ### Running the tests
 
@@ -116,6 +124,8 @@ using the standard ASP.NET Core double-underscore convention (e.g.
 | `StorageProvider` | `AzureBlob` or `LocalFileSystem` (§7.4/§13, BR-D-03) | `LocalFileSystem` — the committed dev default, since no real Azure Storage account is configured locally |
 | `LocalStorage:RootPath` | Where documents are written when `StorageProvider` is `LocalFileSystem` | `uploads` |
 | `Jwt:Issuer` / `Jwt:Audience` / `Jwt:SigningKey` | Self-hosted test JWT issuer config (ADR-0007) | see `appsettings.Development.json` — dev-only, not a real secret |
+| `DevAuth:Enabled` | Turns on the demo token issuer `POST /api/dev/auth/token` (ADR-0010). Demo/dev only | `false` (default); `true` in `appsettings.Development.json` |
+| `Cors:AllowedOrigins` | Browser origins allowed to call the API (the deployed Angular frontend). No wildcard; local dev uses the `ng serve` proxy instead | `["https://<frontend>.azurestaticapps.net"]`; empty by default |
 | `Hangfire:StartServer` | Set to `false` to register jobs without running a worker (used by the test fixture) | `true` (default) |
 
 **Fallback behavior worth knowing:** even if `StorageProvider` is set to `AzureBlob`, the app
@@ -174,12 +184,16 @@ running; high points:
   concurrent submissions never collide (ADR-0001). `POST /api/claims/validate` runs the same
   validation without creating anything, for the FNOL form's per-step feedback.
 - **Claim reads & lifecycle** (`GET /api/claims`, `GET /api/claims/{id}`,
-  `PUT /api/claims/{id}/status`) — paginated/filterable list, full detail view, and a strict
-  status-transition state machine (§4.2) that rejects anything not in the transition table with a
-  422 and the list of valid next statuses.
+  `PUT /api/claims/{id}/status`, `GET /api/claims/{id}/status/preflight?target=`,
+  `PATCH /api/claims/{id}/notes`) — paginated list filterable by several statuses
+  (`?status=Open&status=Closed`), handler name (`?assignedHandler=`), dates, cause of loss and
+  search; full detail view; and a strict status-transition state machine (§4.2) that rejects
+  anything not in the transition table with a 422 and the list of valid next statuses. The
+  pre-flight endpoint evaluates the same blocking conditions (e.g. CC-01–CC-04 for Closed) without
+  changing anything, for the frontend's closure checklist.
 - **Party management** (`POST`/`DELETE /api/claims/{id}/parties/...`) — add/soft-remove parties.
 - **Reserve management** (`POST /api/claims/{id}/reserves`, `/approve`, `/reject`, `/retract`,
-  `/reserves/override`) — the three-tier authority workflow (≤$10,000 auto-approves; higher
+  `/retry-posting`, `/reserves/override`) — the three-tier authority workflow (≤$10,000 auto-approves; higher
   amounts need Supervisor/Manager approval), self-approval rejection (BR-R-03), and an
   append-only `ReserveHistory` ledger — `CurrentAmount` is never updated directly, only ever moved
   by a new history row reaching an approved/posted state (ADR-0002).
@@ -196,7 +210,7 @@ running; high points:
   entry written during that request, including from background jobs.
 
 See `ARCHITECTURE.md` for how these fit together, and `docs/adr/0001`–`0009` for the reasoning
-behind each hard-to-reverse decision.
+behind each hard-to-reverse decision (`0010` covers the demo-user token issuer).
 
 ## Repository layout
 

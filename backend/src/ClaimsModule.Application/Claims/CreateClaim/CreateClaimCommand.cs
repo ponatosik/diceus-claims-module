@@ -8,8 +8,8 @@ using MediatR;
 namespace ClaimsModule.Application.Claims.CreateClaim;
 
 /// <summary>
-/// FNOL intake (§10.1, US13). No initial-reserve field by design — this slice writes nothing to the
-/// reserve tables (see the plan's Resolved Ambiguity 2); that's Slice C's job.
+/// FNOL intake (§10.1, US13), with §11.2 Step 3's optional initial reserve (spec 006 story 7) recorded
+/// in the same transaction as the claim.
 /// </summary>
 public class CreateClaimCommand : IRequest<ClaimDto>, IHasValidationWarnings
 {
@@ -33,6 +33,9 @@ public class CreateClaimCommand : IRequest<ClaimDto>, IHasValidationWarnings
 
     public List<CreateRiskObjectDto>? RiskObjects { get; set; } = [];
 
+    /// <summary>Optional. Always recorded as an Add transaction on a brand-new component.</summary>
+    public CreateInitialReserveDto? InitialReserve { get; set; }
+
     public List<ValidationFailure> Warnings { get; } = [];
 }
 
@@ -51,3 +54,8 @@ public record CreateRiskObjectDto(
     string? DamageDescription,
     bool IsPrimary,
     string? AssetReference);
+
+public record CreateInitialReserveDto(
+    ReserveComponentType Component,
+    decimal Amount,
+    string ChangeReason) : IReserveChangeRequest;

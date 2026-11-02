@@ -14,6 +14,9 @@ public interface IClaimReserveComponentRepository
     /// <summary>CC-01: whether any ReserveHistory transaction for this claim is still awaiting approval.</summary>
     Task<bool> AnyReserveHistoryPendingApprovalAsync(Guid claimId, CancellationToken cancellationToken = default);
 
+    /// <summary>Pending Amount (GLOSSARY.md) per component: sum of each component's PendingApproval transactions. Components with none are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, decimal>> GetPendingAmountsByComponentAsync(Guid claimId, CancellationToken cancellationToken = default);
+
     /// <summary>Open/UnderInvestigation→PendingPayment's condition: at least one approved reserve transaction.</summary>
     Task<bool> AnyReserveHistoryApprovedOrAutoApprovedAsync(Guid claimId, CancellationToken cancellationToken = default);
 

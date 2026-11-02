@@ -8,7 +8,10 @@ namespace ClaimsModule.Application.Claims;
 /// <summary>GET /api/claims/{id}/reserves — current balance per component plus full transaction history (§10.2).</summary>
 public record ListClaimReservesQuery(Guid ClaimId) : IRequest<ReserveListDto>;
 
-public class ListClaimReservesQueryHandler(IClaimRepository claimRepository, IClaimReserveComponentRepository reserveComponentRepository)
+public class ListClaimReservesQueryHandler(
+    IClaimRepository claimRepository,
+    IClaimReserveComponentRepository reserveComponentRepository,
+    IUserDirectory userDirectory)
     : IRequestHandler<ListClaimReservesQuery, ReserveListDto>
 {
     public async Task<ReserveListDto> Handle(ListClaimReservesQuery request, CancellationToken cancellationToken)
@@ -19,13 +22,16 @@ public class ListClaimReservesQueryHandler(IClaimRepository claimRepository, ICl
         var components = await reserveComponentRepository.ListByClaimIdAsync(request.ClaimId, cancellationToken);
         var history = await reserveComponentRepository.ListHistoryByClaimIdAsync(request.ClaimId, cancellationToken);
 
+        var pendingAmounts = await reserveComponentRepository.GetPendingAmountsByComponentAsync(request.ClaimId, cancellationToken);
+
+        var displayNames = await userDirectory.GetDisplayNamesAsync(history.SelectMany(ReserveTransactionMapper.UserIdsOf), cancellationToken);
         var componentTypesById = components.ToDictionary(c => c.ReserveComponentId, c => c.Component);
 
         var componentDtos = components
-            .Select(c => new ReserveSummaryDto(c.ReserveComponentId, c.Component.ToString(), c.CurrentAmount, c.Status.ToString()))
+            .Select(c => new ReserveSummaryDto(c.ReserveComponentId, c.Component.ToString(), c.CurrentAmount, c.Status.ToString(), pendingAmounts.GetValueOrDefault(c.ReserveComponentId)))
             .ToList();
         var historyDtos = history
-            .Select(h => ReserveTransactionMapper.ToDto(h, componentTypesById[h.ReserveComponentId]))
+            .Select(h => ReserveTransactionMapper.ToDto(h, componentTypesById[h.ReserveComponentId], displayNames))
             .ToList();
 
         return new ReserveListDto(componentDtos, historyDtos);

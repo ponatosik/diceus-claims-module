@@ -58,6 +58,26 @@ public class ListClaimReservesTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Pending_amount_sums_only_the_components_transactions_still_awaiting_approval()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Expense, 5_000m);   // auto-approved — balance, not pending
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Expense, 50_000m);  // pending
+        await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Expense, 20_000m);  // pending
+        var retracted = (await (await OpenReserveAsync(client, claim.ClaimId, ReserveComponentType.Expense, 30_000m))
+            .Content.ReadFromJsonAsync<ReserveTransactionDto>())!;
+        await client.PostAsync($"/api/claims/{claim.ClaimId}/reserves/{retracted.ReserveHistoryId}/retract", null);
+
+        var listed = (await client.GetFromJsonAsync<ReserveListDto>($"/api/claims/{claim.ClaimId}/reserves"))!.Components.Single();
+        var detail = (await client.GetFromJsonAsync<ClaimDetailDto>($"/api/claims/{claim.ClaimId}"))!.Reserves.Single();
+
+        Assert.Equal(5_000m, listed.CurrentAmount);
+        Assert.Equal(70_000m, listed.PendingAmount);
+        Assert.Equal(70_000m, detail.PendingAmount);
+    }
+
+    [Fact]
     public async Task Listing_reserves_for_an_unknown_claim_returns_404()
     {
         using var client = Fixture.CreateAuthenticatedClient("handler");

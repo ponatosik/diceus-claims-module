@@ -11,7 +11,8 @@ public class RetractReserveCommandHandler(
     IClaimRepository claimRepository,
     IClaimReserveComponentRepository reserveComponentRepository,
     IAuditLogService auditLogService,
-    ICurrentUserService currentUserService) : IRequestHandler<RetractReserveCommand, ReserveTransactionDto>
+    ICurrentUserService currentUserService,
+    IUserDirectory userDirectory) : IRequestHandler<RetractReserveCommand, ReserveTransactionDto>
 {
     public async Task<ReserveTransactionDto> Handle(RetractReserveCommand request, CancellationToken cancellationToken)
     {
@@ -52,6 +53,7 @@ public class RetractReserveCommandHandler(
 
         await reserveComponentRepository.CommitChangesAsync(cancellationToken);
 
-        return ReserveTransactionMapper.ToDto(history, component.Component);
+        var displayNames = await userDirectory.GetDisplayNamesAsync(ReserveTransactionMapper.UserIdsOf(history), cancellationToken);
+        return ReserveTransactionMapper.ToDto(history, component.Component, displayNames);
     }
 }

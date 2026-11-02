@@ -11,7 +11,8 @@ public record ListClaimDocumentsQuery(Guid ClaimId) : IRequest<List<ClaimDocumen
 public class ListClaimDocumentsQueryHandler(
     IClaimRepository claimRepository,
     IClaimDocumentRepository documentRepository,
-    IStorageService storageService) : IRequestHandler<ListClaimDocumentsQuery, List<ClaimDocumentDetailDto>>
+    IStorageService storageService,
+    IUserDirectory userDirectory) : IRequestHandler<ListClaimDocumentsQuery, List<ClaimDocumentDetailDto>>
 {
     public async Task<List<ClaimDocumentDetailDto>> Handle(ListClaimDocumentsQuery request, CancellationToken cancellationToken)
     {
@@ -20,6 +21,8 @@ public class ListClaimDocumentsQueryHandler(
 
         var documents = await documentRepository.ListByClaimIdAsync(claim.ClaimId, cancellationToken);
 
+        var displayNames = await userDirectory.GetDisplayNamesAsync(documents.Select(d => d.UploadedByUserId), cancellationToken);
+
         var result = new List<ClaimDocumentDetailDto>();
         foreach (var document in documents)
         {
@@ -27,7 +30,8 @@ public class ListClaimDocumentsQueryHandler(
             result.Add(new ClaimDocumentDetailDto(
                 document.ClaimDocumentId, document.ClaimId, document.DocumentType, document.DocumentName,
                 document.ContentType, document.FileSizeBytes, document.UploadedAt, document.UploadedByUserId,
-                document.Notes, downloadUrl));
+                document.Notes, downloadUrl,
+                document.UploadedByUserId is { } uploaderId ? displayNames.GetValueOrDefault(uploaderId) : null));
         }
 
         return result;

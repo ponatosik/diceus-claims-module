@@ -1,3 +1,5 @@
+using ClaimsModule.Application.Claims;
+using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Application.Common.Behaviors;
 using FluentValidation;
 using MediatR;
@@ -18,6 +20,9 @@ public static class ApplicationServiceCollectionExtensions
         // Wired at the MediatR pipeline level, not controller-level [ApiController] model validation
         // (§18.1 — reviewers check this explicitly).
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        services.AddScoped<ClaimTransitionEvaluator>();
+        services.AddScoped<ReserveTransactionRecorder>();
 
         return services;
     }

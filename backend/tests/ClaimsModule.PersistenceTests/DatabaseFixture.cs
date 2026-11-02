@@ -40,7 +40,7 @@ public class DatabaseFixture : IAsyncLifetime
                 DbAdapter = DbAdapter.SqlServer,
                 // Migration-seeded reference data (§16.4) must survive a reset — only transactional/business
                 // data created by a test should be cleared.
-                TablesToIgnore = [new Respawn.Graph.Table("CauseOfLossCodes"), new Respawn.Graph.Table("Policies")],
+                TablesToIgnore = [new Respawn.Graph.Table("CauseOfLossCodes"), new Respawn.Graph.Table("Policies"), new Respawn.Graph.Table("Users")],
             });
         }
 

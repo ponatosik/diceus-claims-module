@@ -7,4 +7,6 @@ public record ClaimSummaryDto(
     string? PolicyNumber,
     DateTimeOffset LossDate,
     string Status,
-    decimal TotalReserves);
+    decimal TotalReserves,
+    string? CauseOfLossCode,
+    string? CauseOfLossName);

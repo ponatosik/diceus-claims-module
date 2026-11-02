@@ -25,14 +25,19 @@ public class ClaimRepository(ClaimsDbContext dbContext, IUnitOfWork unitOfWork) 
     {
         var query = dbContext.Claims.Include(c => c.LossEvent).AsQueryable();
 
-        if (filter.Status is { } status)
+        if (filter.Statuses is { Count: > 0 } statuses)
         {
-            query = query.Where(c => c.Status == status);
+            query = query.Where(c => statuses.Contains(c.Status));
         }
 
         if (filter.AssignedHandlerId is { } assignedHandlerId)
         {
             query = query.Where(c => c.AssignedHandlerId == assignedHandlerId);
+        }
+
+        if (filter.AssignedHandlerIds is { } assignedHandlerIds)
+        {
+            query = query.Where(c => c.AssignedHandlerId != null && assignedHandlerIds.Contains(c.AssignedHandlerId.Value));
         }
 
         if (filter.PolicyId is { } policyId)

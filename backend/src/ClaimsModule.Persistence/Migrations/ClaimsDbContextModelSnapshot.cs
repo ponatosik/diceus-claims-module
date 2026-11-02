@@ -24,7 +24,7 @@ namespace ClaimsModule.Persistence.Migrations
 
             modelBuilder.HasSequence("ClaimNumberSequence");
 
-            modelBuilder.Entity("ClaimsModule.Domain.CauseOfLossCode", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.CauseOfLossCode", b =>
                 {
                     b.Property<Guid>("CauseOfLossCodeId")
                         .ValueGeneratedOnAdd()
@@ -154,7 +154,7 @@ namespace ClaimsModule.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.Claim", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.Claim", b =>
                 {
                     b.Property<Guid>("ClaimId")
                         .ValueGeneratedOnAdd()
@@ -251,7 +251,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("Claims", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimAuditLog", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimAuditLog", b =>
                 {
                     b.Property<Guid>("AuditLogId")
                         .ValueGeneratedOnAdd()
@@ -303,7 +303,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ClaimAuditLog", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimDocument", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimDocument", b =>
                 {
                     b.Property<Guid>("ClaimDocumentId")
                         .ValueGeneratedOnAdd()
@@ -380,7 +380,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ClaimDocuments", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimParty", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimParty", b =>
                 {
                     b.Property<Guid>("ClaimPartyId")
                         .ValueGeneratedOnAdd()
@@ -461,7 +461,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ClaimParties", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimReserveComponent", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimReserveComponent", b =>
                 {
                     b.Property<Guid>("ReserveComponentId")
                         .ValueGeneratedOnAdd()
@@ -529,7 +529,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ClaimReserveComponents", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimRiskObject", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimRiskObject", b =>
                 {
                     b.Property<Guid>("ClaimRiskObjectId")
                         .ValueGeneratedOnAdd()
@@ -594,7 +594,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ClaimRiskObjects", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.LossEvent", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.LossEvent", b =>
                 {
                     b.Property<Guid>("LossEventId")
                         .ValueGeneratedOnAdd()
@@ -669,7 +669,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("LossEvents", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.OutboxMessage", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.OutboxMessage", b =>
                 {
                     b.Property<Guid>("OutboxMessageId")
                         .ValueGeneratedOnAdd()
@@ -703,7 +703,7 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("OutboxMessages", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.Policy", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.Policy", b =>
                 {
                     b.Property<Guid>("PolicyId")
                         .ValueGeneratedOnAdd()
@@ -796,7 +796,7 @@ namespace ClaimsModule.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ReserveHistory", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ReserveHistory", b =>
                 {
                     b.Property<Guid>("ReserveHistoryId")
                         .ValueGeneratedOnAdd()
@@ -898,44 +898,86 @@ namespace ClaimsModule.Persistence.Migrations
                     b.ToTable("ReserveHistory", (string)null);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.Claim", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.User", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Policy", null)
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("Users", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = new Guid("00000000-0000-0000-0003-000000000001"),
+                            DisplayName = "Alex Morgan",
+                            Role = "handler"
+                        },
+                        new
+                        {
+                            UserId = new Guid("00000000-0000-0000-0003-000000000002"),
+                            DisplayName = "Priya Shah",
+                            Role = "supervisor"
+                        },
+                        new
+                        {
+                            UserId = new Guid("00000000-0000-0000-0003-000000000003"),
+                            DisplayName = "Daniel Okafor",
+                            Role = "manager"
+                        });
+                });
+
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.Claim", b =>
+                {
+                    b.HasOne("ClaimsModule.Domain.Entities.Policy", null)
                         .WithMany()
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimAuditLog", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimAuditLog", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithMany()
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimDocument", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimDocument", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithMany()
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimParty", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimParty", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithMany("Parties")
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimReserveComponent", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimReserveComponent", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", "Claim")
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", "Claim")
                         .WithMany()
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -944,47 +986,47 @@ namespace ClaimsModule.Persistence.Migrations
                     b.Navigation("Claim");
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ClaimRiskObject", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ClaimRiskObject", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithMany("RiskObjects")
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.LossEvent", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.LossEvent", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.CauseOfLossCode", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.CauseOfLossCode", null)
                         .WithMany()
                         .HasForeignKey("CauseOfLossCode")
                         .HasPrincipalKey("Code")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithOne("LossEvent")
-                        .HasForeignKey("ClaimsModule.Domain.LossEvent", "ClaimId")
+                        .HasForeignKey("ClaimsModule.Domain.Entities.LossEvent", "ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.ReserveHistory", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.ReserveHistory", b =>
                 {
-                    b.HasOne("ClaimsModule.Domain.Claim", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.Claim", null)
                         .WithMany()
                         .HasForeignKey("ClaimId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ClaimsModule.Domain.ClaimReserveComponent", null)
+                    b.HasOne("ClaimsModule.Domain.Entities.ClaimReserveComponent", null)
                         .WithMany()
                         .HasForeignKey("ReserveComponentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ClaimsModule.Domain.Claim", b =>
+            modelBuilder.Entity("ClaimsModule.Domain.Entities.Claim", b =>
                 {
                     b.Navigation("LossEvent");
 

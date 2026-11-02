@@ -12,7 +12,8 @@ public class UploadClaimDocumentCommandHandler(
     IClaimDocumentRepository documentRepository,
     IStorageService storageService,
     IAuditLogService auditLogService,
-    ICurrentUserService currentUserService) : IRequestHandler<UploadClaimDocumentCommand, ClaimDocumentDetailDto>
+    ICurrentUserService currentUserService,
+    IUserDirectory userDirectory) : IRequestHandler<UploadClaimDocumentCommand, ClaimDocumentDetailDto>
 {
     public async Task<ClaimDocumentDetailDto> Handle(UploadClaimDocumentCommand request, CancellationToken cancellationToken)
     {
@@ -52,10 +53,13 @@ public class UploadClaimDocumentCommandHandler(
 
         var downloadUrl = await storageService.GetDownloadUrlAsync(document.BlobPath, cancellationToken);
 
+        var displayNames = await userDirectory.GetDisplayNamesAsync([document.UploadedByUserId], cancellationToken);
+
         return new ClaimDocumentDetailDto(
             document.ClaimDocumentId, document.ClaimId, document.DocumentType, document.DocumentName,
             document.ContentType, document.FileSizeBytes, document.UploadedAt, document.UploadedByUserId,
-            document.Notes, downloadUrl);
+            document.Notes, downloadUrl,
+            document.UploadedByUserId is { } uploaderId ? displayNames.GetValueOrDefault(uploaderId) : null);
     }
 
     /// <summary>Inserts the document id before the extension, e.g. "report.pdf" → "report_{id:N}.pdf".</summary>

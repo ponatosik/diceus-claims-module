@@ -29,6 +29,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IClaimDocumentRepository, ClaimDocumentRepository>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
 
         return services;
     }

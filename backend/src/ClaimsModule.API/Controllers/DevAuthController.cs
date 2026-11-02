@@ -1,40 +1,41 @@
 using ClaimsModule.API.Authentication;
+using ClaimsModule.Application.Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace ClaimsModule.API.Controllers;
 
-public record DevTokenRequest(string Role, Guid? UserId = null);
+public record DevTokenRequest(Guid UserId);
 
-public record DevTokenResponse(string AccessToken);
+public record DevTokenResponse(string AccessToken, Guid UserId, string DisplayName, string Role);
 
 /// <summary>
-/// The self-hosted test token issuer ADR-0007 calls for — mints a JWT for one of the three roles
-/// using the exact same signing logic <see cref="TestTokenFactory"/> gives ApiIntegrationTests
-/// in-process. Scoped strictly to Development/Testing; returns 404 everywhere else so it can
-/// never be mistaken for production-appropriate auth.
+/// The self-hosted test token issuer (ADR-0007), amended by ADR-0010: mints a JWT for one of the three
+/// fixed Demo Users, taking the role from the seeded user directory rather than the caller. Gated on
+/// <c>DevAuth:Enabled</c>; returns 404 when disabled so it can never be mistaken for production auth.
 /// </summary>
 [ApiController]
 [Route("api/dev/auth")]
-public class DevAuthController(IHostEnvironment environment, IOptions<JwtOptions> jwtOptions) : ControllerBase
+public class DevAuthController(
+    IOptions<DevAuthOptions> devAuthOptions,
+    IOptions<JwtOptions> jwtOptions,
+    IUserDirectory userDirectory) : ControllerBase
 {
-    private static readonly string[] ValidRoles = ["handler", "supervisor", "manager"];
-
     [HttpPost("token")]
-    public ActionResult<DevTokenResponse> CreateToken([FromBody] DevTokenRequest request)
+    public async Task<ActionResult<DevTokenResponse>> CreateToken([FromBody] DevTokenRequest request, CancellationToken cancellationToken)
     {
-        if (!environment.IsDevelopment() && !environment.IsEnvironment("Testing"))
+        if (!devAuthOptions.Value.Enabled)
         {
             return NotFound();
         }
 
-        if (!ValidRoles.Contains(request.Role))
+        var user = await userDirectory.GetByIdAsync(request.UserId, cancellationToken);
+        if (user is null)
         {
-            return BadRequest($"Role must be one of: {string.Join(", ", ValidRoles)}.");
+            return BadRequest("UserId must be one of the seeded demo users.");
         }
 
-        var token = TestTokenFactory.CreateToken(request.Role, request.UserId ?? Guid.NewGuid(), jwtOptions.Value);
-        return Ok(new DevTokenResponse(token));
+        var token = TestTokenFactory.CreateToken(user.Role, user.UserId, jwtOptions.Value);
+        return Ok(new DevTokenResponse(token, user.UserId, user.DisplayName, user.Role));
     }
 }

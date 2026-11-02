@@ -26,6 +26,8 @@ public class ValidateClaimQuery : IRequest<List<ValidationIssueDto>>
     public List<CreatePartyDto> Parties { get; set; } = [];
 
     public List<CreateRiskObjectDto> RiskObjects { get; set; } = [];
+
+    public CreateInitialReserveDto? InitialReserve { get; set; }
 }
 
 public class ValidateClaimQueryHandler(IValidator<CreateClaimCommand> validator)
@@ -43,6 +45,7 @@ public class ValidateClaimQueryHandler(IValidator<CreateClaimCommand> validator)
             EstimatedLossAmount = request.EstimatedLossAmount,
             Parties = request.Parties,
             RiskObjects = request.RiskObjects,
+            InitialReserve = request.InitialReserve,
         };
 
         var result = await validator.ValidateAsync(transientCommand, cancellationToken);

@@ -14,7 +14,8 @@ public record ClaimDetailDto(
     List<ReserveSummaryDto> Reserves,
     List<ClaimDocumentDto> Documents,
     List<AuditLogEntryDto> RecentAuditEntries,
-    bool ReserveOverrideApproved);
-
-/// <summary>Reused by GetClaimAuditLogQuery (Task 11) for the full paginated audit log.</summary>
-public record AuditLogEntryDto(DateTimeOffset CreatedAt, string EventType, string Description);
+    bool ReserveOverrideApproved,
+    string? Severity,
+    string? Notes,
+    UserSummaryDto? AssignedHandler,
+    string? CauseOfLossName);

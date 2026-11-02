@@ -1,0 +1,16 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/*.{js,css,ico,png,svg,woff,woff2,json,txt,map}"]
+  },
+  "routes": [
+    {
+      "route": "/assets/config.json",
+      "headers": { "Cache-Control": "no-store" }
+    }
+  ],
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}

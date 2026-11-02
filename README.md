@@ -12,8 +12,8 @@ monitoring, and document management, per `REQUIREMENTS.md`.
 | Backend (.NET 9, Clean Architecture, CQRS) | **Done.** Slices `001`–`006` shipped, reviewed, and tested (`006` = the gaps the frontend needs), plus ADR-0011 (reserve decreases/reversals). 292/292 tests passing. |
 | Frontend (Angular 22) | **Done.** Specs `007`–`012`: shell + demo auth, claims dashboard, FNOL wizard, and Claim Detail (header, Overview, Parties, Reserves, Documents, Audit Log). 259 unit/component tests + 15 Playwright end-to-end tests against the docker-compose stack. |
 | Local full stack (`docker-compose.yml`) | **Done.** SQL Server + migrations + API + nginx-served frontend in one command. |
-| Azure deployment (§19) | **Not done.** Deliberately scoped out of the backend effort — see [`wayfinder/map.md`](wayfinder/map.md)'s "Out of scope" section. The app runs locally only; see "Azure deployment" below for what reproducing a deployment would require. |
-| CI/CD pipeline (§19/NFR-AZ-03) | **Not done.** No pipeline definition exists yet, for the same reason as Azure deployment. |
+| Azure deployment (§19) | **Defined, ready to run.** Bicep in `infra/`, a one-time bootstrap (`scripts/azure-bootstrap.sh`), then GitHub Actions provision and deploy everything — see "Azure deployment" below. Live URLs are listed there once deployed. |
+| CI/CD pipeline (§19/NFR-AZ-03) | **Done.** `ci.yml` (every push: all backend + frontend tests, lint, Bicep check); `provision.yml` and `deploy.yml` (manual: Bicep; build → EF migrations → deploy API + frontend → smoke test). |
 
 This README documents the system as it stands today. Claims about a deployed URL, a frontend
 feature walkthrough, or a CI/CD pipeline would be fabrications — none of those exist in this
@@ -172,23 +172,55 @@ migrations is sufficient — there is no separate seed script to run.
 
 ## Azure deployment
 
-**Not done in this phase.** `wayfinder/map.md` records this as a deliberate scope decision: Azure
-deployment topology and CI/CD pipeline design (§19–20) were set aside as "a separate future
-effort" so the backend implementation could proceed without re-litigating infrastructure choices
-mid-slice. Nothing is deployed, and there is no live URL to share.
+Everything is defined in this repo (spec `013`, [ADR-0012](docs/adr/0012-free-tier-azure-deployment.md)) and
+runs from GitHub Actions; the only manual part is a one-time bootstrap.
 
-Reproducing a deployment that satisfies §19's minimum resource list would require:
+**Resources** (one resource group, `rg-diceus-claims`, West Europe — all on free or capped tiers to stay
+within a $2/month budget):
 
-- **Azure App Service** for the API (`ClaimsModule.API`), with the configuration keys above set
-  as App Service application settings (double-underscore syntax).
-- **Azure SQL Database** (or SQL Managed Instance) — two databases, mirroring the local setup: one
-  for `ClaimsDatabase`, one for `HangfireDatabase`.
-- **Azure Blob Storage** account, with `StorageProvider` set to `AzureBlob` and a real
-  `ConnectionStrings:AzureBlobStorage` value.
-- **Azure Static Web App** (or a second App Service) for the Angular frontend, once it exists.
-- A basic GitHub Actions or Azure Pipelines definition that builds the backend, runs
-  `dotnet ef database update` against the Azure SQL database, builds the frontend, and deploys
-  both (NFR-AZ-03) — manually triggered is acceptable per the spec.
+| Resource | Tier | Notes |
+|---|---|---|
+| App Service (Linux) — the API, Swagger at `/swagger` | **F1 Free** | Sleeps after ~20 idle minutes; the first request after that takes ~10–20 s (cold start). Hangfire jobs (GL posting, SLA check) run while it's awake. |
+| Static Web App — the Angular frontend | **Free** | Calls the API cross-origin; `assets/config.json` is written at deploy time with the API URL. |
+| Azure SQL — `ClaimsModule` + `ClaimsModuleHangfire` | **Free offer** (serverless) | 100,000 vCore-seconds + 32 GB per database per month; **auto-pauses** rather than bills if exhausted. |
+| Storage account — document blobs | Standard LRS, Hot | Downloads are 1-hour SAS URLs. |
+| Key Vault | Standard | Every secret (SQL password, connection strings, blob connection string, JWT signing key); the API reads them via Key Vault references with its managed identity. |
+| Budget | $2 / month | Emails at 50% and 100% of actual and 100% of forecast spend. |
+
+No Application Insights, Log Analytics or Defender plans (they would cost money); use the App Service log
+stream for diagnostics.
+
+**Reproducing the deployment**
+
+1. Run `scripts/azure-bootstrap.sh` locally (needs `gh`, logged in). It walks you through a block to paste into
+   [Azure Cloud Shell](https://shell.azure.com) that creates the resource group and a GitHub-only deploy identity
+   (OIDC federated credential — no stored secrets), then sets the repo variables `AZURE_CLIENT_ID`,
+   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `BUDGET_ALERT_EMAIL`, and can trigger the two workflows below.
+2. **Provision Azure** (`provision.yml`, manual): `what-if`, then deploys `infra/main.bicep`. The SQL password and
+   JWT key are generated on the first run and reused afterwards.
+3. **Deploy** (`deploy.yml`, manual): builds the API and an EF migration bundle, applies migrations through a
+   firewall rule opened only for the runner (and removed afterwards), deploys the API, builds and deploys the
+   frontend, runs `deploy/smoke-test.sh`, and — with **seedDemoClaims** — creates six demo claims through the API
+   (`deploy/seed-demo-claims.mjs`, skipped if claims exist).
+
+**Live URLs** — filled in after the first deployment (also printed in each workflow run's summary):
+
+- Frontend: _pending first deploy_
+- API / Swagger: _pending first deploy_
+
+### Test credentials
+
+There are no passwords: the deployed app uses the three fixed demo users (ADR-0010). Pick one with **Act as** in
+the top bar — the app signs in as that user with a real, server-validated JWT.
+
+| User | Role | Can |
+|---|---|---|
+| Alex Morgan | handler | Log claims, manage parties and documents, submit reserves (auto-approved up to $10,000) |
+| Priya Shah | supervisor | Everything a handler can, plus approve/reject reserves up to $100,000 and reopen claims |
+| Daniel Okafor | manager | Everything, including reserves above $100,000 and the $10M aggregate-limit override |
+
+To try the approval flow: as Alex, add a $25,000 reserve; switch to Priya and approve it — the GL posting
+badge moves from Pending to Posted within about a minute.
 
 ## Feature walkthrough (backend)
 

@@ -212,25 +212,36 @@ Web Apps pointing at a separate API origin (which is what `Cors:AllowedOrigins` 
 
 ## Azure architecture
 
-**Nothing is deployed.** This was a deliberate scope decision recorded in `wayfinder/map.md`
-("Azure deployment topology and CI/CD pipeline design... explicitly deferred to a separate future
-effort"), made so the backend implementation itself could proceed without re-litigating
-infrastructure choices mid-slice. There is no Bicep/ARM/Terraform in this repo and no CI/CD
-pipeline file.
+Defined in `infra/` (Bicep) and spec `013`; decisions in [ADR-0012](docs/adr/0012-free-tier-azure-deployment.md).
 
-The intended target, per §19's minimum resource list and this codebase's existing
-provider-abstraction seams:
+```
+ Browser ──HTTPS──► Static Web App (Free)          Angular bundle + assets/config.json
+    │
+    └──HTTPS (CORS)──► App Service F1 (Linux, .NET 9)   ClaimsModule.API + in-process Hangfire server
+                          │  system-assigned managed identity
+                          ├─► Key Vault ──(Key Vault references)──► connection strings, JWT key
+                          ├─► Azure SQL (free offer): ClaimsModule  ◄── EF migration bundle (pipeline)
+                          ├─► Azure SQL (free offer): ClaimsModuleHangfire
+                          └─► Blob Storage (LRS): claim-documents ──► 1-hour SAS URLs back to the browser
+```
 
-- **Azure App Service** for `ClaimsModule.API` — no code changes needed, just configuration
-  (connection strings + `StorageProvider: AzureBlob` as App Service settings).
-- **Azure SQL Database** × 2 (main + Hangfire store) — the codebase already assumes two separate
-  connection strings; this maps directly.
-- **Azure Blob Storage** — `AzureBlobStorageService` already exists and is already the default
-  (`StorageProvider: AzureBlob`); only a real connection string is needed, nothing in the code.
-- **Azure Static Web App** for the Angular frontend, once it exists.
-- **Azure Key Vault** (optional per §19) for the JWT signing key and storage connection strings,
-  instead of App Service app settings in plaintext — not implemented, noted as the natural
-  upgrade.
+- **The API** reads every secret through App Service Key Vault references resolved with its managed identity
+  (Key Vault Secrets User), so app settings hold only references and non-secret values (`StorageProvider`,
+  `Jwt:Issuer/Audience`, `DevAuth:Enabled=true` for the demo users per ADR-0010, `Cors:AllowedOrigins` = the
+  Static Web App).
+- **The frontend** is a static upload; the same build is pointed at the API by `assets/config.json`, written by
+  the deploy workflow. Calls are cross-origin because Static Web Apps Free can't link a backend.
+- **Document bytes never pass through the API on download**: the API returns 1-hour SAS URLs signed with the
+  storage account key (kept in Key Vault); the browser fetches the blob directly.
+- **Migrations** are applied by the deploy pipeline with the EF migration bundle — never by the API at startup
+  — through a SQL firewall rule opened for the runner's IP for the duration of the step. Hangfire creates its own
+  schema in the second database on startup.
+- **Cost**: every resource is on a free or capped tier and nothing bills meaningfully beyond cents (budget
+  $2/month, Pay-As-You-Go). The trade-offs — F1's sleep and cold start, Hangfire running only while the API is
+  awake, databases pausing if their monthly allowance is exhausted — are accepted in ADR-0012; each is a
+  one-line Bicep change to lift.
+- **Pipeline auth**: GitHub Actions signs in with OIDC (federated credential on `main`); no Azure credentials
+  are stored in GitHub.
 
 ## Key design decisions and tradeoffs
 

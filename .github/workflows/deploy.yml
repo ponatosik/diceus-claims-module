@@ -1,0 +1,137 @@
+# Build, migrate, deploy, smoke-test (NFR-AZ-03, spec 013 story 9). Manual only. Migrations run here —
+# never at API startup — through a firewall rule for this runner that is removed even if a step fails.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      seedDemoClaims:
+        description: Seed ~6 demo claims through the API (skipped if the environment already has claims)
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: azure
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: rg-diceus-claims
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read the provisioned resource names
+        run: |
+          az deployment group show --resource-group "$RESOURCE_GROUP" --name main \
+            --query properties.outputs --output json > outputs.json
+          {
+            echo "API_NAME=$(jq -r .apiName.value outputs.json)"
+            echo "API_URL=$(jq -r .apiUrl.value outputs.json)"
+            echo "SWA_NAME=$(jq -r .staticWebAppName.value outputs.json)"
+            echo "FRONTEND_URL=$(jq -r .frontendUrl.value outputs.json)"
+            echo "SQL_SERVER=$(jq -r .sqlServerName.value outputs.json)"
+            echo "KEY_VAULT=$(jq -r .keyVaultName.value outputs.json)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build the API
+        run: dotnet publish backend/src/ClaimsModule.API --configuration Release --output "$RUNNER_TEMP/api"
+
+      - name: Build the EF migration bundle
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.22
+          dotnet ef migrations bundle \
+            --project backend/src/ClaimsModule.Persistence --startup-project backend/src/ClaimsModule.API \
+            --configuration Release --output "$RUNNER_TEMP/efbundle" --force
+
+      - name: Open the SQL firewall for this runner
+        id: firewall
+        run: |
+          ip=$(curl -s https://api.ipify.org)
+          az sql server firewall-rule create --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" \
+            --name "gha-${{ github.run_id }}" --start-ip-address "$ip" --end-ip-address "$ip" --output none
+
+      - name: Apply EF migrations
+        run: |
+          connection=$(az keyvault secret show --vault-name "$KEY_VAULT" --name ClaimsDbConnection --query value --output tsv)
+          echo "::add-mask::$connection"
+          # Retries cover firewall-rule propagation and a free-offer database resuming from auto-pause.
+          for attempt in 1 2 3 4 5 6; do
+            "$RUNNER_TEMP/efbundle" --connection "$connection" && exit 0
+            echo "Migration attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          exit 1
+
+      - name: Close the SQL firewall
+        if: always() && steps.firewall.outcome == 'success'
+        run: |
+          az sql server firewall-rule delete --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" \
+            --name "gha-${{ github.run_id }}" --output none
+
+      - name: Deploy the API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.API_NAME }}
+          package: ${{ runner.temp }}/api
+
+      - name: Build the frontend for this environment
+        working-directory: frontend
+        run: |
+          npm ci
+          npx ng build
+          # Runtime config (spec 007): the same build, pointed at this environment's API.
+          printf '{ "apiBaseUrl": "%s" }\n' "$API_URL" > dist/frontend/browser/assets/config.json
+
+      - name: Read the Static Web App deployment token
+        run: |
+          token=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" \
+            --query properties.apiKey --output tsv)
+          echo "::add-mask::$token"
+          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Deploy the frontend
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          action: upload
+          app_location: frontend/dist/frontend/browser
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Smoke test
+        run: deploy/smoke-test.sh "$API_URL" "$FRONTEND_URL"
+
+      - name: Seed demo claims
+        if: inputs.seedDemoClaims
+        run: node deploy/seed-demo-claims.mjs "$API_URL"
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "### Deployed"
+            echo "- Frontend: $FRONTEND_URL"
+            echo "- API / Swagger: $API_URL/swagger"
+          } >> "$GITHUB_STEP_SUMMARY"

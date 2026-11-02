@@ -1,0 +1,74 @@
+# Creates or updates every Azure resource from infra/main.bicep (spec 013 story 3), authenticated with
+# OIDC (no stored credentials). Manual only. Secrets are generated once and reused on every later run.
+name: Provision Azure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: azure
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: rg-diceus-claims
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Reuse or generate the SQL password and JWT signing key
+        run: |
+          # Re-provisioning must never rotate these (the API and databases depend on them), so they are
+          # read back from Key Vault when it already exists and generated only on the first run.
+          vault=$(az keyvault list --resource-group "$RESOURCE_GROUP" --query '[0].name' --output tsv)
+          read_secret() {
+            if [[ -n "$vault" ]]; then
+              az keyvault secret show --vault-name "$vault" --name "$1" --query value --output tsv 2>/dev/null || true
+            fi
+          }
+          sql_password=$(read_secret SqlAdminPassword)
+          jwt_key=$(read_secret JwtSigningKey)
+          # Azure SQL wants upper, lower, digit and symbol; avoid ';' and '=' (connection-string syntax).
+          [[ -n "$sql_password" ]] || sql_password="Cl-$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 28)9a"
+          [[ -n "$jwt_key" ]] || jwt_key="$(openssl rand -base64 48 | tr -d '\n')"
+          echo "::add-mask::$sql_password"
+          echo "::add-mask::$jwt_key"
+          {
+            echo "SQL_ADMIN_PASSWORD=$sql_password"
+            echo "JWT_SIGNING_KEY=$jwt_key"
+          } >> "$GITHUB_ENV"
+
+      - name: What-if (shows the planned changes)
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" --name main \
+            --template-file infra/main.bicep \
+            --parameters budgetAlertEmail="${{ vars.BUDGET_ALERT_EMAIL }}" \
+                         sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY"
+
+      - name: Deploy
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" --name main \
+            --template-file infra/main.bicep \
+            --parameters budgetAlertEmail="${{ vars.BUDGET_ALERT_EMAIL }}" \
+                         sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY" \
+            --query properties.outputs --output json | tee outputs.json
+          {
+            echo "### Provisioned"
+            echo "- API: $(jq -r .apiUrl.value outputs.json)"
+            echo "- Frontend: $(jq -r .frontendUrl.value outputs.json)"
+          } >> "$GITHUB_STEP_SUMMARY"

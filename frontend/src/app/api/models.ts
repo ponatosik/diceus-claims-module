@@ -49,7 +49,9 @@ export interface ClaimListQuery {
   /** Loss date range, `YYYY-MM-DD`. */
   dateFrom?: string;
   dateTo?: string;
+  /** Partial, case-insensitive match on the handler's display name. */
   assignedHandler?: string;
+  assignedHandlerId?: string;
   causeOfLossCode?: string;
   policyId?: string;
   search?: string;

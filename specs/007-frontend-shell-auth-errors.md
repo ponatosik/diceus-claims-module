@@ -44,6 +44,19 @@ Scaffold `/frontend` on current stable Angular with standalone components and la
 - **E2E (Playwright)** project scaffolded here against docker-compose, with one smoke test: app loads, Demo User switch changes the header, an authenticated API call succeeds.
 - Prior art: none in the frontend; these establish the patterns later slices follow.
 
+## Delivery Notes
+
+- Delivered in Slice G: everything above except the items below, which land with the first slice
+  that needs them (so they are built against a real use, not speculatively):
+  - "claim 404 → not-found page" (story 7) — needs the claim loader; Slice J (spec 010 story 10).
+  - The shared authority-indicator component and confirm dialog — Slice I (FNOL step 3) and Slice J.
+- `statusColour(status)` (story 11) is `claimStatusToken(status)`: it returns the CSS custom property
+  name (`--status-open`), with the colours themselves defined once in `styles.scss`.
+- Dates need no helper: `DatePipe` renders in the browser's local zone and `Date.toISOString()` is
+  the wire format (UTC, which the API's `DateTimeOffset` accepts).
+- Migrations "on start" (story 12) run as a one-shot EF migration bundle container before the API
+  starts, keeping the API itself free of startup migrations (CLAUDE.md).
+
 ## Out of Scope
 
 - Azure Static Web App configuration and CI/CD (deferred, as for the backend).

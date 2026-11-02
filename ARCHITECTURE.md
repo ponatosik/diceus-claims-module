@@ -1,8 +1,8 @@
 # Architecture
 
-This document covers the backend as implemented (all 5 slices, specs `001`–`005`). There is no
-frontend yet, and nothing is deployed to Azure — see `README.md`'s status table for why, and
-"Azure architecture" below for the intended target shape.
+This document covers the backend as implemented (specs `001`–`006`) and the frontend foundation
+(spec `007`; the screens in `008`–`012` are still to come). Nothing is deployed to Azure — see
+`README.md`'s status table for why, and "Azure architecture" below for the intended target shape.
 
 ## Solution structure
 
@@ -177,6 +177,37 @@ job-processing store isn't the same database as the application's OLTP data.
 `ClaimsModule.ApiIntegrationTests` so tests can enqueue and run jobs deterministically, without a
 live worker racing test assertions or Respawn's per-test reset) while keeping job *registration*
 and *enqueuing* fully live against the real store.
+
+## Frontend structure
+
+Angular 22, standalone components, zoneless change detection, signals for state. Layout under
+`frontend/src/app/`:
+
+- **`api/`** — TypeScript mirrors of the backend DTOs plus one service per resource (`ClaimsApi`,
+  `ReservesApi`, `DocumentsApi`, `PoliciesApi`, `ReferenceApi`, `AuthApi`). This is the only code
+  that touches `HttpClient` (§11.4); components and stores call these services.
+- **`core/`** — cross-cutting runtime: `MockAuthService` (the three Demo Users from ADR-0010, a real
+  JWT minted by the API's dev issuer, held in memory), the auth interceptor (Bearer header, one
+  shared token refresh on a 401), the error interceptor (every failure → typed `ApiError` →
+  severity-matched snackbar → rethrown so 422 details can render inline), runtime config, and the
+  shell.
+- **`shared/`** — pure domain helpers that deliberately mirror backend rules so the UI and API can't
+  disagree (`authorityTier` = `ReserveAuthority.GetTier`, `isInForce` = BR-C-02's UTC-day check,
+  role permissions = the backend's role checks), `applyServerErrors` for mapping FluentValidation
+  paths onto reactive forms, and small UI pieces.
+- **`features/`** — `claims-list`, `fnol-intake`, `claim-detail`.
+
+**"Lazy-loaded feature modules" (§11.4) without `NgModule`s.** Each feature is a lazy route bundle:
+a `*.routes.ts` file loaded with `loadChildren`, producing its own JS chunk. That is what a lazy
+feature module was for (a separately loaded, self-contained slice of the app); in standalone-era
+Angular the route file *is* the module boundary, and `NgModule` would add only boilerplate.
+
+**Runtime configuration.** `/assets/config.json` (`apiBaseUrl`) is fetched before bootstrap, so the
+same build artifact runs behind the dev proxy, behind nginx in docker-compose, or on Azure Static
+Web Apps pointing at a separate API origin (which is what `Cors:AllowedOrigins` exists for).
+
+**Role gating in two places (FR-ROLE-01).** The frontend hides or disables actions using
+`core/auth/permissions.ts`; the API enforces the same rules independently and remains the authority.
 
 ## Azure architecture
 

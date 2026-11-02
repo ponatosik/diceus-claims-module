@@ -37,6 +37,14 @@ describe('ClaimsApi', () => {
     expect(request.request.params.has('dateTo')).toBe(false);
   });
 
+  it('passes the assigned handler id filter through', () => {
+    api.list({ assignedHandlerId: 'u1', causeOfLossCode: 'COL-FIRE' }).subscribe();
+
+    const request = http.expectOne((r) => r.url === 'https://api.test/api/claims');
+    expect(request.request.params.get('assignedHandlerId')).toBe('u1');
+    expect(request.request.params.get('causeOfLossCode')).toBe('COL-FIRE');
+  });
+
   it('drops blank text filters', () => {
     api.list({ search: '  ', assignedHandler: '' }).subscribe();
 

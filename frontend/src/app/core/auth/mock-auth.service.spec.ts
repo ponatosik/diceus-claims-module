@@ -100,4 +100,17 @@ describe('MockAuthService', () => {
 
     expect(service.currentUser()).toEqual(supervisor);
   });
+
+  it('shares one token request between concurrent refreshes', async () => {
+    const signedIn = firstValueFrom(service.signIn(supervisor.userId));
+    answerTokenRequest(supervisor.userId, 'old');
+    await signedIn;
+
+    const first = firstValueFrom(service.refreshToken());
+    const second = firstValueFrom(service.refreshToken());
+    answerTokenRequest(supervisor.userId, 'new'); // expectOne: exactly one request in flight
+
+    expect(await first).toBe('new');
+    expect(await second).toBe('new');
+  });
 });

@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, finalize, map, shareReplay, tap } from 'rxjs';
 import { AuthApi } from '../../api/auth-api';
 import { DEMO_USERS, DemoUser } from './demo-users';
 import {
@@ -23,6 +23,7 @@ export class MockAuthService {
   private readonly authApi = inject(AuthApi);
   private readonly user = signal<DemoUser>(DEMO_USERS[0]);
   private readonly token = signal<string | null>(null);
+  private refreshInFlight: Observable<string> | null = null;
 
   readonly currentUser = this.user.asReadonly();
   readonly accessToken = this.token.asReadonly();
@@ -61,12 +62,18 @@ export class MockAuthService {
     );
   }
 
-  /** Re-mints the current user's token (the auth interceptor's single retry on a 401). */
+  /**
+   * Re-mints the current user's token (the auth interceptor's single retry on a 401). Concurrent
+   * callers — several requests rejected at once — share one in-flight token request.
+   */
   refreshToken(): Observable<string> {
-    return this.authApi.mintToken(this.user().userId).pipe(
+    this.refreshInFlight ??= this.authApi.mintToken(this.user().userId).pipe(
       map((response) => response.accessToken),
       tap((accessToken) => this.token.set(accessToken)),
+      finalize(() => (this.refreshInFlight = null)),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
+    return this.refreshInFlight;
   }
 }
 

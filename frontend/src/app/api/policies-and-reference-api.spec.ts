@@ -27,9 +27,14 @@ describe('PoliciesApi and ReferenceApi', () => {
   it('loads cause-of-loss codes and the claim-status transition table', () => {
     const reference = TestBed.inject(ReferenceApi);
     reference.causeOfLossCodes().subscribe();
+    reference.causeOfLossCodes('Weather').subscribe();
     reference.claimStatuses().subscribe();
 
-    http.expectOne('https://api.test/api/reference/cause-of-loss-codes');
+    const [all, weather] = http.match(
+      (r) => r.url === 'https://api.test/api/reference/cause-of-loss-codes',
+    );
+    expect(all.request.params.keys()).toEqual([]);
+    expect(weather.request.params.get('perilCategory')).toBe('Weather');
     http.expectOne('https://api.test/api/reference/claim-statuses');
   });
 });

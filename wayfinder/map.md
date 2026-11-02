@@ -35,7 +35,7 @@ A **complete decision log** for the backend's architecture/implementation choice
 
 ## Out of scope
 
-- **Azure deployment topology and CI/CD pipeline design** (§19–20) — explicitly deferred to a separate future effort per this map's destination; not fog, just not this map's job.
+- **Azure deployment topology and CI/CD pipeline design** (§19–20) — explicitly deferred to a separate future effort per this map's destination; since planned via a grilling session (2026-11-02): `specs/013-azure-deployment-cicd.md` and [ADR-0012](../docs/adr/0012-free-tier-azure-deployment.md).
 - **Soft-delete cascading rules** — ruled out: no claim-deletion workflow exists anywhere in the business rules (claims only move through the status lifecycle, never get deleted), so there's nothing to cascade. `IsDeleted`/soft-delete columns stay as schema convention per §16.1 but no cascading behavior needs designing.
 - **API versioning** — ditched. The implementation follows `REQUIREMENTS.md` §10's route paths exactly, with no version segment or header introduced, rather than adopting URL-segment or header-based versioning.
 - **Frontend architecture** — planned outside this map via a grilling session (2026-11-02); outcome is `specs/006`–`012`, [ADR-0010](../docs/adr/0010-dev-token-issuer-flag-and-fixed-demo-users.md) and `GLOSSARY.md`.

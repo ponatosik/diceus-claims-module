@@ -4,10 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Backend skeleton is scaffolded and buildable; zero business logic yet.** Frontend does not exist yet.
+**Backend slices A–E (`specs/001`–`005`) are implemented.** Frontend is planned but not yet scaffolded: `specs/006` (backend gaps the frontend needs — do this first) then `specs/007`–`012` (Angular slices G–L, in that order; 008/009/010 can run in parallel after 007, 011/012 after 010).
 
 - `REQUIREMENTS.md` — the single source of truth. A consolidated, non-summarized requirements spec compiled from the two source PDFs (`Claims_Module_Candidate_Specification.pdf`, `DICEUS_Fullstack_Technical_Assessment.pdf`). Read this file, not the PDFs, for implementation detail — it reproduces every business rule, data entity, API contract, and constraint verbatim with traceability IDs (`BR-*`, `CC-*`, `FR-*`, `NFR-*`).
 - `wayfinder/map.md` — the backend implementation decision log (local-markdown issue tracker; see `wayfinder/TRACKER.md` for the convention). Resolves the architecture choices `REQUIREMENTS.md` deliberately leaves open. **Check this before making a call `REQUIREMENTS.md` doesn't pin down** — it's likely already decided here, with the full reasoning in `docs/adr/`.
+- `GLOSSARY.md` — canonical domain terms (Authority Tier, Submitter, Pending Amount, In-force, Blocking Condition, Pre-flight Check, Aggregate Limit Override, Demo User). Use these words in code, specs and UI copy.
+- `docs/adr/0010` — dev token issuer gated by `DevAuth:Enabled` + three fixed Demo Users (amends ADR-0007); the basis for the frontend's mock auth.
 - `docs/adr/0001`–`0009` — ADRs for the hard-to-reverse backend decisions (claim number generation, reserve balance persistence, repository/Unit-of-Work shape, domain events + outbox, GL posting idempotency, exception-to-status-code mapping, JWT auth strategy, validation-severity pipeline + business-rule error shape, testing strategy). Each is 1–3 paragraphs; read the relevant one before touching that area.
 - One wayfinder ticket is still open (11 — correlation-id for background/outbox-dispatched audit entries). Check `wayfinder/map.md`'s frontier before assuming it's settled; everything else on the backend decision log is closed.
 
@@ -35,7 +37,7 @@ Monorepo:
     ClaimsModule.UnitTests          xUnit, no I/O, no containers. Domain logic, FluentValidation validators, MediatR handlers with mocked repositories, plus a NetArchTest.Rules architecture-fitness suite (ArchitectureTests.cs) enforcing the dependency rules above at build time.
     ClaimsModule.PersistenceTests   xUnit + Testcontainers (SQL Server only). EF Core configurations/migrations/query filters — no HTTP, no MediatR. DatabaseFixture is an xUnit collection fixture (one container per assembly run, not per test); DatabaseFixture.ResetAsync() uses Respawn for inter-test isolation.
     ClaimsModule.ApiIntegrationTests   xUnit + Testcontainers (SQL Server with 2 DBs — main + a Hangfire-store stand-in per ADR-0004 — plus Azurite). ApiFixture extends WebApplicationFactory<Program> against real containers; full HTTP request/response cycles through the real MediatR pipeline. GL posting idempotency tests (once the feature exists) belong here, not a separate project, per ADR-0009.
-/frontend/           Angular 18+ workspace (not yet created)
+/frontend/           Angular workspace (not yet created — layout, conventions and tooling fixed in specs/007)
 docker-compose.yml   local dev: SQL Server + API + frontend (not yet created)
 ```
 

@@ -46,7 +46,11 @@ if (existing.totalCount > 0) {
   process.exit(0);
 }
 
-const policyId = async (query) => (await handler('GET', `/api/policies/search?q=${encodeURIComponent(query)}`))[0].policyId;
+async function policyId(query) {
+  const [policy] = await handler('GET', `/api/policies/search?q=${encodeURIComponent(query)}`);
+  if (policy === undefined) throw new Error(`No seeded policy matches "${query}" — has the database been migrated?`);
+  return policy.policyId;
+}
 const person = (partyRole, firstName, lastName, extra = {}) => ({ partyRole, partyType: 'Person', firstName, lastName, ...extra });
 
 async function createClaim({ policy, lossDaysAgo, cause, description, location, estimate, parties, riskObjects = [], initialReserve = null }) {

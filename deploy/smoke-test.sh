@@ -38,7 +38,7 @@ done
 [[ -n "$token" ]] || { echo "✗ could not mint a demo token" >&2; exit 1; }
 echo "✓ demo token minted"
 
-status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 -H "Authorization: Bearer $token" "$API_URL/api/claims")
+status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 -H "Authorization: Bearer $token" "$API_URL/api/claims" || true)
 [[ "$status" == "200" ]] || { echo "✗ GET /api/claims → $status" >&2; exit 1; }
 echo "✓ GET /api/claims → 200"
 

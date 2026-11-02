@@ -15,9 +15,9 @@ monitoring, and document management, per `REQUIREMENTS.md`.
 | Azure deployment (§19) | **Defined, ready to run.** Bicep in `infra/`, a one-time bootstrap (`scripts/azure-bootstrap.sh`), then GitHub Actions provision and deploy everything — see "Azure deployment" below. Live URLs are listed there once deployed. |
 | CI/CD pipeline (§19/NFR-AZ-03) | **Done.** `ci.yml` (every push: all backend + frontend tests, lint, Bicep check); `provision.yml` and `deploy.yml` (manual: Bicep; build → EF migrations → deploy API + frontend → smoke test). |
 
-This README documents the system as it stands today. Claims about a deployed URL, a frontend
-feature walkthrough, or a CI/CD pipeline would be fabrications — none of those exist in this
-repository yet, and this document does not pretend otherwise.
+This README documents the system as it stands today. The deployment is fully defined and
+runnable from this repo; the live URLs below are filled in only once it has actually been
+deployed — until then they say so.
 
 ## Quick start (full stack in Docker)
 
@@ -182,13 +182,14 @@ within a $2/month budget):
 |---|---|---|
 | App Service (Linux) — the API, Swagger at `/swagger` | **F1 Free** | Sleeps after ~20 idle minutes; the first request after that takes ~10–20 s (cold start). Hangfire jobs (GL posting, SLA check) run while it's awake. |
 | Static Web App — the Angular frontend | **Free** | Calls the API cross-origin; `assets/config.json` is written at deploy time with the API URL. |
-| Azure SQL — `ClaimsModule` + `ClaimsModuleHangfire` | **Free offer** (serverless) | 100,000 vCore-seconds + 32 GB per database per month; **auto-pauses** rather than bills if exhausted. |
+| Azure SQL — `ClaimsModule` + `ClaimsModuleHangfire` | **Free offer** (serverless) | 100,000 vCore-seconds + 32 GB per database per month (≈55 awake hours at the 0.5 vCore minimum). If a database exhausts its allowance it **pauses instead of billing — and the app is down until the 1st of the next month**. The API sleeping when idle keeps usage far below this for a review. |
 | Storage account — document blobs | Standard LRS, Hot | Downloads are 1-hour SAS URLs. |
 | Key Vault | Standard | Every secret (SQL password, connection strings, blob connection string, JWT signing key); the API reads them via Key Vault references with its managed identity. |
 | Budget | $2 / month | Emails at 50% and 100% of actual and 100% of forecast spend. |
 
 No Application Insights, Log Analytics or Defender plans (they would cost money); use the App Service log
-stream for diagnostics.
+stream for diagnostics. SQL accepts connections only from the API's outbound IPs (and, during a deploy, the
+runner's IP) — no "allow all Azure services" rule.
 
 **Reproducing the deployment**
 
@@ -201,7 +202,12 @@ stream for diagnostics.
 3. **Deploy** (`deploy.yml`, manual): builds the API and an EF migration bundle, applies migrations through a
    firewall rule opened only for the runner (and removed afterwards), deploys the API, builds and deploys the
    frontend, runs `deploy/smoke-test.sh`, and — with **seedDemoClaims** — creates six demo claims through the API
-   (`deploy/seed-demo-claims.mjs`, skipped if claims exist).
+   (`deploy/seed-demo-claims.mjs`, skipped if any claims exist — so a seed that fails part-way is not
+   completed by re-running it).
+
+**Caveats.** Key Vault keeps deleted vaults for 7 days (soft delete): if you delete the resource group, wait
+7 days or purge the vault (`az keyvault purge --name <vault>`) before provisioning again. The deploy identity
+can create role assignments, but only for the *Key Vault Secrets User* role (an RBAC condition).
 
 **Live URLs** — filled in after the first deployment (also printed in each workflow run's summary):
 

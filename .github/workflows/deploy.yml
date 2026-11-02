@@ -26,17 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: backend/global.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: azure/login@v2
+      - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -68,7 +68,8 @@ jobs:
       - name: Open the SQL firewall for this runner
         id: firewall
         run: |
-          ip=$(curl -s https://api.ipify.org)
+          ip=$(curl -sf --max-time 20 https://api.ipify.org)
+          [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Could not determine the runner's IP"; exit 1; }
           az sql server firewall-rule create --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" \
             --name "gha-${{ github.run_id }}" --start-ip-address "$ip" --end-ip-address "$ip" --output none
 
@@ -91,7 +92,7 @@ jobs:
             --name "gha-${{ github.run_id }}" --output none
 
       - name: Deploy the API
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
         with:
           app-name: ${{ env.API_NAME }}
           package: ${{ runner.temp }}/api
@@ -112,7 +113,7 @@ jobs:
           echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
 
       - name: Deploy the frontend
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
           action: upload

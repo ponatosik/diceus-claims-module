@@ -1,6 +1,8 @@
 // Azure SQL: one logical server, two databases (main + Hangfire's separate store, ADR-0004), both on
 // the free offer (100,000 vCore-seconds, 32 GB each per month) with AutoPause when the allowance is
 // exhausted — they pause rather than bill (ADR-0012).
+// API version 2023-08-01-preview: the first that exposes the free-offer properties used below
+// (useFreeLimit, freeLimitExhaustionBehavior).
 param location string
 param serverName string
 param adminLogin string
@@ -20,16 +22,8 @@ resource server 'Microsoft.Sql/servers@2023-08-01-preview' = {
   }
 }
 
-// Lets App Service reach the server. The deploy pipeline adds (and removes) its own runner-IP rule
-// only while applying migrations.
-resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: server
-  name: 'AllowAllWindowsAzureIps'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
+// No "Allow Azure services" rule (it admits every Azure customer's IPs): provision.yml adds one
+// rule per API outbound IP, and deploy.yml adds the runner's IP only while applying migrations.
 
 var databaseNames = ['ClaimsModule', 'ClaimsModuleHangfire']
 
@@ -48,7 +42,7 @@ resource databases 'Microsoft.Sql/servers/databases@2023-08-01-preview' = [for d
     freeLimitExhaustionBehavior: 'AutoPause'
     autoPauseDelay: 60
     minCapacity: json('0.5')
-    maxSizeBytes: 34359738368
+    maxSizeBytes: 32 * 1024 * 1024 * 1024 // the free offer's 32 GB
     requestedBackupStorageRedundancy: 'Local'
     zoneRedundant: false
   }
@@ -78,4 +72,3 @@ resource hangfireConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01'
 }
 
 output serverName string = server.name
-output claimsDatabaseName string = databases[0].name

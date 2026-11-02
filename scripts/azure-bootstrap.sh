@@ -220,6 +220,7 @@ stage "Cloud Shell: create the deploy identity"
 say "Cloud Shell has the Azure CLI built in. You'll paste one block there."
 open_url "https://shell.azure.com/bash"
 step "In Cloud Shell (Bash), if you have several subscriptions run: az account set --subscription \"<name or id>\""
+note "The deploy identity gets Contributor, Key Vault Secrets Officer, and a role-assignment right limited to one role."
 step "Then copy everything between the lines below and paste it into Cloud Shell:"
 printf '\n%s──────────────── copy from here ────────────────%s\n' "$DIM" "$RESET"
 cat <<'CLOUDSHELL'
@@ -237,9 +238,21 @@ az ad sp show --id "$APP_ID" -o none 2>/dev/null || az ad sp create --id "$APP_I
 SP_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
 RG_ID=$(az group show --name rg-diceus-claims --query id -o tsv)
 sleep 20  # let the new service principal propagate before assigning roles
-for role in "Contributor" "User Access Administrator" "Key Vault Secrets Officer"; do
-  az role assignment create --assignee-object-id "$SP_ID" --assignee-principal-type ServicePrincipal --role "$role" --scope "$RG_ID" -o none 2>/dev/null || true
-done
+assign() {  # role [condition]: idempotent, and loud on failure (set -e)
+  if [ "$(az role assignment list --assignee "$SP_ID" --scope "$RG_ID" --role "$1" --query 'length(@)' -o tsv)" = "0" ]; then
+    if [ -n "${2:-}" ]; then
+      az role assignment create --assignee-object-id "$SP_ID" --assignee-principal-type ServicePrincipal --role "$1" --scope "$RG_ID" --condition "$2" --condition-version 2.0 -o none
+    else
+      az role assignment create --assignee-object-id "$SP_ID" --assignee-principal-type ServicePrincipal --role "$1" --scope "$RG_ID" -o none
+    fi
+  fi
+  echo "  ✓ $1"
+}
+assign "Contributor"
+assign "Key Vault Secrets Officer"   # provision.yml reuses existing secrets; deploy.yml reads the DB connection
+# Least privilege: may only grant or remove "Key Vault Secrets User" (the API's managed identity role).
+KV_SECRETS_USER=4633458b-17de-408a-b874-0445c86b69e6
+assign "Role Based Access Control Administrator" "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {$KV_SECRETS_USER})) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR (@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {$KV_SECRETS_USER}))"
 echo; echo "AZURE_CLIENT_ID=$APP_ID"; echo "AZURE_TENANT_ID=$TENANT_ID"; echo "AZURE_SUBSCRIPTION_ID=$SUBSCRIPTION_ID"
 CLOUDSHELL
 printf '%s──────────────── copy to here ──────────────────%s\n\n' "$DIM" "$RESET"
@@ -271,15 +284,26 @@ GH_REPO="$REPO" set_var BUDGET_ALERT_EMAIL "$BUDGET_ALERT_EMAIL"
 # ── 5 ─────────────────────────────────────────────────────────────────────
 stage "Provision and deploy"
 say "Everything from here runs in GitHub Actions: Bicep provisioning, then build, migrations, deploy and a smoke test."
+# Trigger a workflow and print the id of *that* run (not merely the latest one).
+dispatch() {
+  local workflow="$1"; shift
+  local since run_id=""
+  since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  gh workflow run "$workflow" --repo "$REPO" "$@" >/dev/null
+  for _ in $(seq 1 30); do
+    sleep 3
+    run_id=$(gh run list --repo "$REPO" --workflow "$workflow" --event workflow_dispatch --limit 5 \
+      --json databaseId,createdAt --jq "[.[] | select(.createdAt >= \"$since\")] | last | .databaseId // empty")
+    [[ -n "$run_id" ]] && { echo "$run_id"; return 0; }
+  done
+  return 1
+}
+
 if confirm "Run 'Provision Azure' now and wait for it (about 5-10 minutes)?"; then
-  gh workflow run provision.yml --repo "$REPO"
-  sleep 8
-  run_id=$(gh run list --repo "$REPO" --workflow provision.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+  run_id=$(dispatch provision.yml) || { warn "Couldn't find the provision run — check the Actions tab."; finish; return; }
   gh run watch "$run_id" --repo "$REPO" --exit-status || { warn "Provisioning failed — see: gh run view $run_id --repo $REPO --log-failed"; finish; return; }
   if confirm "Provisioning succeeded. Run 'Deploy' now, seeding the demo claims?"; then
-    gh workflow run deploy.yml --repo "$REPO" -f seedDemoClaims=true
-    sleep 8
-    run_id=$(gh run list --repo "$REPO" --workflow deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+    run_id=$(dispatch deploy.yml -f seedDemoClaims=true) || { warn "Couldn't find the deploy run — check the Actions tab."; finish; return; }
     gh run watch "$run_id" --repo "$REPO" --exit-status || warn "Deploy failed — see: gh run view $run_id --repo $REPO --log-failed"
   else
     SKIPPED+=("Deploy: gh workflow run deploy.yml --repo $REPO -f seedDemoClaims=true")

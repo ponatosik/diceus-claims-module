@@ -45,6 +45,10 @@ Monorepo:
   src/app/api/         typed DTO models + one service per resource — the only place HttpClient is used (§11.4)
   src/app/features/    claims-list, fnol-intake, claim-detail — one lazy route bundle each (*.routes.ts)
 docker-compose.yml   SQL Server + db-init (Hangfire DB) + migrate (EF bundle) + API + nginx-served frontend
+/infra/              Bicep for the Azure deployment (spec 013, ADR-0012): main.bicep + modules/ (api, sql, storage, key-vault, static-web-app, budget)
+/.github/workflows/  ci.yml (every push: all tests, lint, Bicep build), provision.yml + deploy.yml (manual, OIDC)
+/deploy/             smoke-test.sh and seed-demo-claims.mjs, run by deploy.yml against the live environment
+/scripts/            azure-bootstrap.sh — guided one-time Azure + GitHub setup (wizard)
 ```
 
 Dependency direction is strict Clean Architecture: `API → Application → Domain`, with `Infrastructure`/`Persistence` implementing interfaces defined in `Application`/`Domain`. Nothing in `Domain` or `Application` may reference EF Core, Hangfire, or Azure SDK types directly — those live behind interfaces (`IAuditLogService`, `IStorageService`, repository interfaces) implemented in `Persistence`/`Infrastructure`. `ClaimsModule.UnitTests/ArchitectureTests.cs` enforces this automatically — a build failure there means a genuine layering violation, not a flaky test.

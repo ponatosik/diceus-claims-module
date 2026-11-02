@@ -15,15 +15,17 @@ concurrency:
 
 env:
   RESOURCE_GROUP: rg-diceus-claims
+  # Repo variable, passed through env (never spliced into a script).
+  BUDGET_ALERT_EMAIL: ${{ vars.BUDGET_ALERT_EMAIL }}
 
 jobs:
   provision:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: azure/login@v2
+      - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -34,9 +36,18 @@ jobs:
           # Re-provisioning must never rotate these (the API and databases depend on them), so they are
           # read back from Key Vault when it already exists and generated only on the first run.
           vault=$(az keyvault list --resource-group "$RESOURCE_GROUP" --query '[0].name' --output tsv)
+          # Only a definite "SecretNotFound" means "generate one"; any other failure (missing or not yet
+          # propagated role, throttling) stops the run instead of silently rotating a live secret.
           read_secret() {
-            if [[ -n "$vault" ]]; then
-              az keyvault secret show --vault-name "$vault" --name "$1" --query value --output tsv 2>/dev/null || true
+            [[ -n "$vault" ]] || return 0
+            local result
+            if result=$(az keyvault secret show --vault-name "$vault" --name "$1" --query value --output tsv 2>&1); then
+              printf '%s' "$result"
+            elif grep -q 'SecretNotFound' <<<"$result"; then
+              return 0
+            else
+              echo "::error::Could not read $1 from Key Vault $vault: $result"
+              return 1
             fi
           }
           sql_password=$(read_secret SqlAdminPassword)
@@ -53,22 +64,47 @@ jobs:
 
       - name: What-if (shows the planned changes)
         run: |
-          az deployment group what-if \
-            --resource-group "$RESOURCE_GROUP" --name main \
+          az deployment group what-if --resource-group "$RESOURCE_GROUP" --name main \
             --template-file infra/main.bicep \
-            --parameters budgetAlertEmail="${{ vars.BUDGET_ALERT_EMAIL }}" \
-                         sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY"
+            --parameters budgetAlertEmail="$BUDGET_ALERT_EMAIL" sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY"
 
       - name: Deploy
         run: |
-          az deployment group create \
-            --resource-group "$RESOURCE_GROUP" --name main \
+          az deployment group create --resource-group "$RESOURCE_GROUP" --name main \
             --template-file infra/main.bicep \
-            --parameters budgetAlertEmail="${{ vars.BUDGET_ALERT_EMAIL }}" \
-                         sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY" \
-            --query properties.outputs --output json | tee outputs.json
+            --parameters budgetAlertEmail="$BUDGET_ALERT_EMAIL" sqlAdminPassword="$SQL_ADMIN_PASSWORD" jwtSigningKey="$JWT_SIGNING_KEY" \
+            --query properties.outputs --output json > outputs.json
+          {
+            echo "API_NAME=$(jq -r .apiName.value outputs.json)"
+            echo "SQL_SERVER=$(jq -r .sqlServerName.value outputs.json)"
+          } >> "$GITHUB_ENV"
           {
             echo "### Provisioned"
             echo "- API: $(jq -r .apiUrl.value outputs.json)"
             echo "- Frontend: $(jq -r .frontendUrl.value outputs.json)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Allow only the API's outbound IPs through the SQL firewall
+        run: |
+          # Narrower than "Allow Azure services" (which admits every Azure customer's IPs). Rules are
+          # added for the site's current possible outbound IPs, then stale ones are removed.
+          ips=$(az webapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" \
+            --query possibleOutboundIpAddresses --output tsv | tr ',' ' ')
+          [[ -n "$ips" ]] || { echo "::error::No outbound IPs reported for $API_NAME"; exit 1; }
+          wanted=()
+          for ip in $ips; do
+            name="api-outbound-${ip//./-}"
+            wanted+=("$name")
+            az sql server firewall-rule create --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" \
+              --name "$name" --start-ip-address "$ip" --end-ip-address "$ip" --output none
+          done
+          for name in $(az sql server firewall-rule list --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" \
+                          --query "[?starts_with(name, 'api-outbound-') || name == 'AllowAllWindowsAzureIps'].name" --output tsv); do
+            if [[ ! " ${wanted[*]} " == *" $name "* ]]; then
+              az sql server firewall-rule delete --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER" --name "$name" --output none
+            fi
+          done
+
+      - name: Restart the API so its Key Vault references resolve
+        # On the first provision the site can start before its Key Vault role assignment has propagated.
+        run: az webapp restart --resource-group "$RESOURCE_GROUP" --name "$API_NAME"

@@ -58,4 +58,9 @@ public record CreateRiskObjectDto(
 public record CreateInitialReserveDto(
     ReserveComponentType Component,
     decimal Amount,
-    string ChangeReason) : IReserveChangeRequest;
+    string ChangeReason) : IReserveChangeRequest
+{
+    /// <summary>FNOL's initial reserve always opens its component.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsOpening => true;
+}

@@ -17,4 +17,7 @@ public class OpenReserveCommand : IRequest<ReserveTransactionDto>, IReserveChang
     public string ChangeReason { get; set; } = string.Empty;
 
     public ReserveTransactionType TransactionType { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsOpening => TransactionType == ReserveTransactionType.Add;
 }

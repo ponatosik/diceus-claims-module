@@ -45,6 +45,12 @@ public class ReserveTransactionRecorder(
         }
 
         var previousBalance = component.CurrentAmount;
+        var balanceConditions = ReserveBalanceRules.Evaluate(componentType, transactionType, previousBalance, amount);
+        if (balanceConditions.Count > 0)
+        {
+            throw new BusinessRuleViolationException(balanceConditions);
+        }
+
         var newBalance = previousBalance + amount;
         var tier = ReserveAuthority.GetTier(amount);
         var autoApproved = tier == ReserveAuthorityTier.Auto;

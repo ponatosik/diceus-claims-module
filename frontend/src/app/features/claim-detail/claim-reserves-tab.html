@@ -34,15 +34,19 @@
           {{ summary.pendingAmount | currency }} pending approval
         </div>
         @if (summary.currentAmount !== 0) {
-          <button
-            mat-button
-            type="button"
-            class="reverse"
-            [disabled]="busy.pending()"
-            (click)="reverse(summary)"
+          <span
+            [matTooltip]="summary.pendingAmount !== 0 ? 'Resolve the pending change first.' : ''"
           >
-            Reverse
-          </button>
+            <button
+              mat-button
+              type="button"
+              class="reverse"
+              [disabled]="busy.pending() || summary.pendingAmount !== 0"
+              (click)="reverse(summary)"
+            >
+              Reverse
+            </button>
+          </span>
         }
       </div>
     } @empty {

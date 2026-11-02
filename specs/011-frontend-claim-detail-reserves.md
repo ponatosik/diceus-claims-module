@@ -50,8 +50,14 @@ A Reserves tab backed by `GET /api/claims/{id}/reserves` (loaded on first open) 
   enqueued, so its stored `Pending` posting status would mislead.
 - Polling runs only while an *approved* transaction's posting is Pending; in docker-compose the outbox
   dispatcher runs once a minute, so Pending → Posted typically shows within ~1 minute.
-- Row actions without their own dialog (Approve, Retry) surface a 422's Blocking Condition through the
-  error interceptor's snackbar; the Add Reserve panel shows it inline.
+- Reject and Reverse use one reason dialog that runs the action and keeps a 422 on screen; Reverse asks
+  for a real change reason (§8) and is unavailable while the component has a pending change. Approve,
+  Retry and Retract report a 422 through the error interceptor's snackbar; an Approve refused with
+  BR-R-05 also reveals the manager's override.
+- The override forecast checks each pending transaction against the approved total, like the API.
+- The Reserves tab content is lazy (`matTabContent`), so nothing loads or polls until it is opened.
+- Polling is a `setInterval` inside an `effect` with cleanup rather than an RxJS `timer` — same
+  behaviour, signal-native.
 
 ## Out of Scope
 

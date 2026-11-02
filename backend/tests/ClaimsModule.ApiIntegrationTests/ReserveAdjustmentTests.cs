@@ -81,6 +81,18 @@ public class ReserveAdjustmentTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task An_adjustment_cannot_open_a_component_so_BR_R_01_cannot_be_bypassed()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimWithPolicyAsync(client);
+
+        var response = await SubmitAsync(client, claim.ClaimId, ReserveComponentType.Indemnity, -500m, ReserveTransactionType.Adjust);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("RESERVE-TYPE-01", await BlockingCodeAsync(response));
+    }
+
+    [Fact]
     public async Task A_zero_adjustment_is_rejected()
     {
         using var client = Fixture.CreateAuthenticatedClient("handler");

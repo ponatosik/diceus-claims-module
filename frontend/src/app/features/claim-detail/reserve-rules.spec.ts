@@ -4,7 +4,9 @@ import {
   approvalAction,
   canRetract,
   canRetryPosting,
+  amountProblem,
   hasPostingsInFlight,
+  isApproved,
   needsAggregateLimitOverride,
   plannedChange,
   reversalOf,
@@ -53,11 +55,13 @@ describe('plannedChange (what the Add Reserve panel will submit)', () => {
 
 describe('reversalOf', () => {
   it('cancels the component’s current balance exactly', () => {
-    expect(reversalOf(component({ component: 'ALAE', currentAmount: 7250 }))).toEqual({
+    expect(
+      reversalOf(component({ component: 'ALAE', currentAmount: 7250 }), 'Counsel dismissed'),
+    ).toEqual({
       component: 'ALAE',
       amount: -7250,
       transactionType: 'Reverse',
-      changeReason: 'Reserve reversed',
+      changeReason: 'Counsel dismissed',
     });
   });
 });
@@ -141,6 +145,16 @@ describe('needsAggregateLimitOverride (BR-R-05)', () => {
     expect(needsAggregateLimitOverride(components, pending, false)).toBe(true);
   });
 
+  it('checks each pending transaction on its own, as the API does — a pending decrease doesn’t hide it', () => {
+    const components = [component({ currentAmount: 9_500_000 })];
+    const mixed = [
+      txn({ reserveHistoryId: 'up', amount: 600_000 }),
+      txn({ reserveHistoryId: 'down', amount: -700_000 }),
+    ];
+
+    expect(needsAggregateLimitOverride(components, mixed, false)).toBe(true);
+  });
+
   it('is not needed within the limit, or once the override is set', () => {
     expect(
       needsAggregateLimitOverride([component({ currentAmount: 9_000_000 })], pending, false),
@@ -148,5 +162,32 @@ describe('needsAggregateLimitOverride (BR-R-05)', () => {
     expect(
       needsAggregateLimitOverride([component({ currentAmount: 9_500_000 })], pending, true),
     ).toBe(false);
+  });
+});
+
+describe('isApproved', () => {
+  it('counts manual and automatic approval', () => {
+    expect(isApproved(txn({ approvalStatus: 'Approved' }))).toBe(true);
+    expect(isApproved(txn({ approvalStatus: 'AutoApproved' }))).toBe(true);
+    expect(isApproved(txn({ approvalStatus: 'PendingApproval' }))).toBe(false);
+  });
+});
+
+describe('amountProblem (ADR-0011 mirrored for instant feedback)', () => {
+  const existing = [component({ component: 'Indemnity', currentAmount: 5000 })];
+
+  it('requires a positive amount to open a component, except Subrogation recoverable', () => {
+    expect(amountProblem([], 'Indemnity', -100)).toMatch(/positive/);
+    expect(amountProblem([], 'SubrogationRecoverable', -100)).toBeNull();
+  });
+
+  it('allows a decrease down to zero but not below, except Subrogation recoverable', () => {
+    expect(amountProblem(existing, 'Indemnity', -5000)).toBeNull();
+    expect(amountProblem(existing, 'Indemnity', -5000.01)).toMatch(/below zero/);
+  });
+
+  it('has nothing to say about a missing or zero amount (the required/zero checks cover it)', () => {
+    expect(amountProblem(existing, 'Indemnity', null)).toBeNull();
+    expect(amountProblem(existing, 'Indemnity', 0)).toBeNull();
   });
 });

@@ -62,5 +62,5 @@ public record CreateInitialReserveDto(
 {
     /// <summary>FNOL's initial reserve always opens its component.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsOpening => true;
+    public bool IsAddTransaction => true;
 }

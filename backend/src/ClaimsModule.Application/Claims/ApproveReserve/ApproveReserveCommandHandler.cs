@@ -57,11 +57,7 @@ public class ApproveReserveCommandHandler(
 
         // Re-read live rather than trust what was snapshotted at submission time (Resolved Ambiguity 5).
         var previousBalance = component.CurrentAmount;
-        var balanceConditions = ReserveBalanceRules.Evaluate(component.Component, history.TransactionType, previousBalance, history.Amount);
-        if (balanceConditions.Count > 0)
-        {
-            throw new BusinessRuleViolationException(balanceConditions);
-        }
+        ReserveBalanceRules.EnsureSatisfied(component.Component, history.TransactionType, componentExists: true, previousBalance, history.Amount);
 
         var newBalance = previousBalance + history.Amount;
         history.PreviousBalance = previousBalance;

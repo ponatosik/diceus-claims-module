@@ -1,5 +1,13 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,17 +17,19 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Observable, filter, switchMap } from 'rxjs';
 import { ReserveSummary, ReserveTransaction } from '../../api/models';
 import { MockAuthService } from '../../core/auth/mock-auth.service';
+import { isApiError } from '../../core/errors/api-error';
 import { NotificationService } from '../../core/errors/notification.service';
 import { reserveComponentLabel } from '../../shared/domain/labels';
 import { confirm } from '../../shared/ui/confirm-dialog';
 import { PendingTracker } from '../../shared/ui/pending-tracker';
 import { ClaimDetailStore } from './claim-detail.store';
-import { RejectReserveDialog } from './reject-reserve-dialog';
+import { ReasonDialog, ReasonDialogData } from './reason-dialog';
 import { ReservePanel } from './reserve-panel';
 import {
   approvalAction,
   canRetract,
   canRetryPosting,
+  isApproved,
   needsAggregateLimitOverride,
   reversalOf,
 } from './reserve-rules';
@@ -59,17 +69,22 @@ export class ClaimReservesTab {
   protected readonly componentLabel = reserveComponentLabel;
   protected readonly busy = new PendingTracker();
 
+  protected readonly canRetry = canRetryPosting;
   protected readonly overrideApproved = computed(
     () => this.detail.claim()?.reserveOverrideApproved === true,
   );
+  /** An approval the API refused with BR-R-05 — the other trigger for offering the override (spec 011 story 9). */
+  private readonly aggregateLimitHit = signal(false);
   protected readonly offerOverride = computed(
     () =>
       this.auth.canSetAggregateLimitOverride() &&
-      needsAggregateLimitOverride(
-        this.store.components(),
-        this.store.history(),
-        this.overrideApproved(),
-      ),
+      !this.overrideApproved() &&
+      (this.aggregateLimitHit() ||
+        needsAggregateLimitOverride(
+          this.store.components(),
+          this.store.history(),
+          this.overrideApproved(),
+        )),
   );
 
   constructor() {
@@ -93,36 +108,36 @@ export class ClaimReservesTab {
     return canRetract(transaction, this.auth.currentUser().userId);
   }
 
-  protected canRetry(transaction: ReserveTransaction): boolean {
-    return canRetryPosting(transaction);
-  }
-
   /** The GL badge is only meaningful once the transaction is approved — nothing is enqueued before that. */
   protected postingLabel(transaction: ReserveTransaction): string | null {
-    return transaction.approvalStatus === 'Approved' ||
-      transaction.approvalStatus === 'AutoApproved'
-      ? transaction.postingStatus
-      : null;
+    return isApproved(transaction) ? transaction.postingStatus : null;
   }
 
   protected approve(transaction: ReserveTransaction): void {
-    this.run(this.store.approve(transaction.reserveHistoryId), 'Reserve approved.');
+    this.busy.track(this.store.approve(transaction.reserveHistoryId)).subscribe({
+      next: () => this.notifications.success('Reserve approved.'),
+      error: (error: unknown) => {
+        // The snackbar already shows why; a BR-R-05 refusal also offers the manager the override.
+        if (
+          isApiError(error) &&
+          error.blockingConditions.some((condition) => condition.code === 'BR-R-05')
+        ) {
+          this.aggregateLimitHit.set(true);
+        }
+      },
+    });
   }
 
   protected reject(transaction: ReserveTransaction): void {
-    this.dialog
-      .open<RejectReserveDialog, void, string>(RejectReserveDialog, { width: '480px' })
-      .afterClosed()
-      .pipe(
-        filter((reason): reason is string => reason !== undefined),
-        switchMap((reason) =>
-          this.busy.track(this.store.reject(transaction.reserveHistoryId, reason)),
-        ),
-      )
-      .subscribe({
-        next: () => this.notifications.success('Reserve rejected.'),
-        error: () => undefined,
-      });
+    this.askForReason(
+      {
+        title: 'Reject reserve',
+        label: 'Rejection reason',
+        confirmLabel: 'Reject',
+        submit: (reason) => this.store.reject(transaction.reserveHistoryId, reason),
+      },
+      'Reserve rejected.',
+    );
   }
 
   protected retract(transaction: ReserveTransaction): void {
@@ -143,13 +158,14 @@ export class ClaimReservesTab {
 
   protected reverse(summary: ReserveSummary): void {
     const label = reserveComponentLabel(summary.component);
-    this.confirmThen(
+    this.askForReason(
       {
         title: `Reverse the ${label} reserve?`,
         message: 'A Reverse transaction will bring this reserve’s balance to zero.',
+        label: 'Reason for the reversal',
         confirmLabel: 'Reverse',
+        submit: (reason) => this.store.submit(reversalOf(summary, reason)),
       },
-      () => this.store.submit(reversalOf(summary)),
       `${label} reverse submitted.`,
     );
   }
@@ -180,10 +196,19 @@ export class ClaimReservesTab {
       .subscribe({ next: () => this.notifications.success(success), error: () => undefined });
   }
 
-  /** Row actions report 422s through the error interceptor's snackbar (the Blocking Condition message). */
+  /** Retry reports a 422 through the error interceptor's snackbar (the Blocking Condition message). */
   private run(action: Observable<void>, success: string): void {
     this.busy
       .track(action)
       .subscribe({ next: () => this.notifications.success(success), error: () => undefined });
+  }
+
+  /** Reject and Reverse: a reason dialog that runs the action itself and keeps any 422 on screen. */
+  private askForReason(data: ReasonDialogData, success: string): void {
+    this.dialog
+      .open<ReasonDialog, ReasonDialogData, boolean>(ReasonDialog, { data, width: '480px' })
+      .afterClosed()
+      .pipe(filter((done) => done === true))
+      .subscribe(() => this.notifications.success(success));
   }
 }

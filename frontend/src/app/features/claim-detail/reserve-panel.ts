@@ -22,7 +22,7 @@ import { RESERVE_COMPONENTS, reserveComponentLabel } from '../../shared/domain/l
 import { applyServerErrors } from '../../shared/forms/apply-server-errors';
 import { AuthorityIndicator } from '../../shared/ui/authority-indicator';
 import { PendingTracker } from '../../shared/ui/pending-tracker';
-import { plannedChange } from './reserve-rules';
+import { amountProblem, plannedChange } from './reserve-rules';
 import { ReservesStore } from './reserves.store';
 
 /**
@@ -80,25 +80,16 @@ export class ReservePanel {
   });
   protected readonly amount = computed(() => this.value().amount);
 
-  /** ADR-0011, mirrored for instant feedback: opening needs a positive amount; no balance below zero except Subrogation. */
-  protected readonly amountProblem = computed(() => {
-    const { component, amount } = this.value();
-    if (amount === null || amount === 0) return null;
-    const plan = this.plan();
-    if (component === 'SubrogationRecoverable') return null;
-    if (plan.transactionType === 'Add' && amount < 0)
-      return 'A new reserve must open with a positive amount.';
-    if (plan.newBalance < 0) return 'The reserve can’t go below zero.';
-    return null;
-  });
+  protected readonly amountProblem = computed(() =>
+    amountProblem(this.store.components(), this.value().component, this.value().amount),
+  );
 
   protected readonly canSubmit = computed(() => {
-    this.value();
+    // Read the value signal first: form.valid is not a signal, so a computed that short-circuits on
+    // it before touching value() would never re-run as the user types.
+    const { amount } = this.value();
     return (
-      this.form.valid &&
-      this.value().amount !== 0 &&
-      this.amountProblem() === null &&
-      !this.saving.pending()
+      amount !== 0 && this.amountProblem() === null && this.form.valid && !this.saving.pending()
     );
   });
 

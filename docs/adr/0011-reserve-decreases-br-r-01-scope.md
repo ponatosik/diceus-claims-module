@@ -8,4 +8,6 @@ BR-R-01 / §8 say a reserve transaction amount "must be greater than zero (excep
 
 ## Consequences
 
-Authority tiers still apply to `|amount|` (`ReserveAuthority.GetTier`), so a large decrease needs the same approval as a large increase. New 422 codes: `RESERVE-BALANCE-NEGATIVE-01`, `RESERVE-REVERSE-01`.
+Whether a transaction *opens* a component is decided by the server from whether the component exists, not from the client's transaction type — so an `Adjust`/`Reverse` of a component that doesn't exist is refused (`RESERVE-TYPE-01`) and BR-R-01 can't be bypassed by labelling a negative opening "Adjust". Repeated `Add`s on an existing component still accumulate (the original Slice C contract), and the validator still requires an `Add` to be positive.
+
+Authority tiers still apply to `|amount|` (`ReserveAuthority.GetTier`), so a large decrease needs the same approval as a large increase. New 422 codes: `RESERVE-TYPE-01`, `RESERVE-BALANCE-NEGATIVE-01`, `RESERVE-REVERSE-01` (constants on `ReserveBalanceRules`).

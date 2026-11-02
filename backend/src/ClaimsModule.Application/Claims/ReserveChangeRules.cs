@@ -12,8 +12,8 @@ public interface IReserveChangeRequest
 
     string ChangeReason { get; }
 
-    /// <summary>Whether this change opens a component (an Add) — BR-R-01's positivity rule applies only then (ADR-0011).</summary>
-    bool IsOpening { get; }
+    /// <summary>Whether the client submitted an Add — which must be positive (BR-R-01). Whether it actually opens a component is the server's call (ReserveBalanceRules).</summary>
+    bool IsAddTransaction { get; }
 }
 
 /// <summary>
@@ -30,12 +30,12 @@ public class ReserveChangeRules : AbstractValidator<IReserveChangeRequest>
 
         RuleFor(x => x.Amount)
             .Must((change, amount) => amount > 0 || (amount != 0 && change.Component == ReserveComponentType.SubrogationRecoverable))
-            .When(x => x.IsOpening)
+            .When(x => x.IsAddTransaction)
             .WithMessage("Reserve amount must be greater than zero.");
 
         RuleFor(x => x.Amount)
             .NotEqual(0m)
-            .When(x => !x.IsOpening)
+            .When(x => !x.IsAddTransaction)
             .WithMessage("Reserve amount must not be zero.");
 
         RuleFor(x => x.ChangeReason).NotEmpty().MaximumLength(500);

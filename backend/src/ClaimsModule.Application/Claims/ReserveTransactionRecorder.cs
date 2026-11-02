@@ -27,6 +27,7 @@ public class ReserveTransactionRecorder(
         CancellationToken cancellationToken)
     {
         var component = await reserveComponentRepository.GetByClaimIdAndComponentAsync(claim.ClaimId, componentType, cancellationToken);
+        ReserveBalanceRules.EnsureSatisfied(componentType, transactionType, component is not null, component?.CurrentAmount ?? 0m, amount);
         if (component is null)
         {
             // Client-side id assignment — the history row below needs a real ReserveComponentId in
@@ -45,12 +46,6 @@ public class ReserveTransactionRecorder(
         }
 
         var previousBalance = component.CurrentAmount;
-        var balanceConditions = ReserveBalanceRules.Evaluate(componentType, transactionType, previousBalance, amount);
-        if (balanceConditions.Count > 0)
-        {
-            throw new BusinessRuleViolationException(balanceConditions);
-        }
-
         var newBalance = previousBalance + amount;
         var tier = ReserveAuthority.GetTier(amount);
         var autoApproved = tier == ReserveAuthorityTier.Auto;

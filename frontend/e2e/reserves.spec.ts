@@ -102,7 +102,9 @@ test.describe('claim detail — reserves', () => {
     await expect(page.locator('tbody tr').first()).toContainText('-$3,000.00');
 
     await card.getByRole('button', { name: 'Reverse' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Reverse' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Reason for the reversal').fill('Expert engagement cancelled');
+    await dialog.getByRole('button', { name: 'Reverse' }).click();
 
     await expect(card).toContainText('$0.00');
     await expect(page.locator('tbody tr').first()).toContainText('Reverse');

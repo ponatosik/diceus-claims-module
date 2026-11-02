@@ -34,13 +34,30 @@ export function plannedChange(
 }
 
 /** A Reverse exactly cancels the component's current balance (ADR-0011, RESERVE-REVERSE-01). */
-export function reversalOf(summary: ReserveSummary): OpenReserveRequest {
+export function reversalOf(summary: ReserveSummary, changeReason: string): OpenReserveRequest {
   return {
     component: summary.component,
     amount: -summary.currentAmount,
     transactionType: 'Reverse',
-    changeReason: 'Reserve reversed',
+    changeReason,
   };
+}
+
+/**
+ * ADR-0011 mirrored for instant feedback in the Add Reserve panel: a new component must open with a
+ * positive amount, and no balance may go below zero — SubrogationRecoverable excepted in both.
+ */
+export function amountProblem(
+  components: readonly ReserveSummary[],
+  component: ReserveComponentType,
+  amount: number | null,
+): string | null {
+  if (amount === null || amount === 0 || component === 'SubrogationRecoverable') return null;
+  const plan = plannedChange(components, component, amount);
+  if (plan.transactionType === 'Add' && amount < 0)
+    return 'A new reserve must open with a positive amount.';
+  if (plan.newBalance < 0) return 'The reserve can’t go below zero.';
+  return null;
 }
 
 export interface ApprovalAction {
@@ -83,6 +100,11 @@ export function canRetryPosting(transaction: ReserveTransaction): boolean {
   return transaction.postingStatus === 'Failed';
 }
 
+/** Approved, manually or automatically — the point at which a GL posting is enqueued (§6.5). */
+export function isApproved(transaction: ReserveTransaction): boolean {
+  return transaction.approvalStatus === 'Approved' || transaction.approvalStatus === 'AutoApproved';
+}
+
 /** An approved transaction whose GL posting hasn't finished yet — the tab polls while any exist (spec 011 story 10). */
 export function hasPostingsInFlight(history: readonly ReserveTransaction[]): boolean {
   return history.some(
@@ -95,7 +117,11 @@ export function hasPostingsInFlight(history: readonly ReserveTransaction[]): boo
 
 const AGGREGATE_LIMIT = 10_000_000;
 
-/** BR-R-05: approving the pending transactions would take total reserves past $10,000,000 without the override. */
+/**
+ * BR-R-05: approving some pending transaction would take total approved reserves past $10,000,000
+ * without the override. Checked per transaction against the approved total, exactly like the API
+ * (ReserveAggregateLimit) — so a pending decrease can't mask a pending increase.
+ */
 export function needsAggregateLimitOverride(
   components: readonly ReserveSummary[],
   history: readonly ReserveTransaction[],
@@ -103,8 +129,9 @@ export function needsAggregateLimitOverride(
 ): boolean {
   if (overrideApproved) return false;
   const approvedTotal = components.reduce((sum, summary) => sum + summary.currentAmount, 0);
-  const pendingTotal = history
-    .filter((transaction) => transaction.approvalStatus === 'PendingApproval')
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  return Math.abs(approvedTotal + pendingTotal) > AGGREGATE_LIMIT;
+  return history.some(
+    (transaction) =>
+      transaction.approvalStatus === 'PendingApproval' &&
+      Math.abs(approvedTotal + transaction.amount) > AGGREGATE_LIMIT,
+  );
 }

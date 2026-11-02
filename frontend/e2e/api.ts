@@ -30,10 +30,20 @@ export class ApiSeeder {
     return new ApiSeeder(request, accessToken);
   }
 
-  async createClaim(): Promise<SeededClaim> {
+  /** Creates a Draft claim; pass a policy search term to link a policy (reserves need one, BR-C-06). */
+  async createClaim(policyQuery?: string): Promise<SeededClaim> {
+    const policyId =
+      policyQuery === undefined
+        ? null
+        : (
+            await this.get<{ policyId: string }[]>(
+              `/api/policies/search?q=${encodeURIComponent(policyQuery)}`,
+            )
+          )[0].policyId;
     const response = await this.request.post('/api/claims', {
       headers: this.headers(),
       data: {
+        policyId,
         lossDate: new Date(Date.now() - 86_400_000).toISOString(),
         lossDescription: 'A pipe burst and flooded the basement overnight.',
         causeOfLossCode: 'COL-FIRE',
@@ -61,6 +71,11 @@ export class ApiSeeder {
     const response = await this.request.get(path, { headers: this.headers() });
     if (!response.ok()) throw new Error(`GET ${path} failed: ${response.status()}`);
     return (await response.json()) as T;
+  }
+
+  /** A raw POST, for asserting on API rejections. */
+  post(path: string, data?: unknown) {
+    return this.request.post(path, { headers: this.headers(), data });
   }
 
   private headers() {

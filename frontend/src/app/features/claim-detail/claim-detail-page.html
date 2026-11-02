@@ -18,9 +18,9 @@
         <mat-tab label="Parties"
           ><div class="tab-body"><app-claim-parties-tab /></div
         ></mat-tab>
-        <mat-tab label="Reserves"
-          ><div class="tab-body placeholder">Reserves arrive in the next slice.</div></mat-tab
-        >
+        <mat-tab label="Reserves">
+          <div class="tab-body"><app-claim-reserves-tab [highlight]="highlight()" /></div>
+        </mat-tab>
         <mat-tab label="Documents"
           ><div class="tab-body placeholder">Documents arrive in a later slice.</div></mat-tab
         >

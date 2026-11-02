@@ -1,0 +1,158 @@
+<mat-drawer-container class="drawer-container" hasBackdrop>
+  <mat-drawer #panel mode="over" position="end" class="panel">
+    <app-reserve-panel (closed)="panel.close()" />
+  </mat-drawer>
+
+  <div class="toolbar">
+    <h2>Reserves</h2>
+    @if (store.pollingPostings()) {
+      <span class="polling" role="status"
+        ><mat-spinner diameter="16" /> Waiting for GL posting…</span
+      >
+    }
+    <span class="spacer"></span>
+    @if (overrideApproved()) {
+      <span class="override-badge">Override approved</span>
+    } @else if (offerOverride()) {
+      <button mat-stroked-button type="button" [disabled]="busy.pending()" (click)="setOverride()">
+        Approve aggregate-limit override
+      </button>
+    }
+    <button mat-flat-button type="button" (click)="panel.open()">
+      <mat-icon>add</mat-icon>
+      Add Reserve
+    </button>
+  </div>
+
+  <div class="cards">
+    @for (summary of store.components(); track summary.reserveComponentId) {
+      <div class="card" [attr.data-testid]="'component-' + summary.component">
+        <div class="card-title">{{ componentLabel(summary.component) }}</div>
+        <div class="balance">{{ summary.currentAmount | currency }}</div>
+        <div class="label">Current balance</div>
+        <div class="pending" [class.has-pending]="summary.pendingAmount !== 0">
+          {{ summary.pendingAmount | currency }} pending approval
+        </div>
+        @if (summary.currentAmount !== 0) {
+          <button
+            mat-button
+            type="button"
+            class="reverse"
+            [disabled]="busy.pending()"
+            (click)="reverse(summary)"
+          >
+            Reverse
+          </button>
+        }
+      </div>
+    } @empty {
+      @if (store.loaded()) {
+        <p class="empty">No reserves yet. Use “Add Reserve” to open one.</p>
+      }
+    }
+  </div>
+
+  <table class="history" aria-label="Reserve transactions">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Type</th>
+        <th scope="col">Component</th>
+        <th scope="col" class="amount">Amount</th>
+        <th scope="col">Status</th>
+        <th scope="col">GL posting</th>
+        <th scope="col">Submitted by</th>
+        <th scope="col">Approved by</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (txn of store.history(); track txn.reserveHistoryId) {
+        <tr
+          [attr.data-testid]="'txn-' + txn.reserveHistoryId"
+          [class.highlighted]="txn.reserveHistoryId === highlight()"
+        >
+          <td>{{ txn.createdAt | date: 'medium' }}</td>
+          <td>{{ txn.transactionType }}</td>
+          <td>{{ componentLabel(txn.component) }}</td>
+          <td class="amount">
+            <span [class.increase]="txn.amount > 0" [class.decrease]="txn.amount < 0">{{
+              txn.amount > 0 ? '+' + (txn.amount | currency) : (txn.amount | currency)
+            }}</span>
+          </td>
+          <td>
+            <span class="chip" [class]="'chip approval-' + txn.approvalStatus">{{
+              txn.approvalStatus
+            }}</span>
+            @if (txn.rejectionReason) {
+              <div class="note">{{ txn.rejectionReason }}</div>
+            }
+          </td>
+          <td>
+            @if (postingLabel(txn); as posting) {
+              <span [class]="'chip posting-' + posting">{{ posting }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td>{{ txn.submittedByDisplayName ?? '—' }}</td>
+          <td>{{ txn.approvedByDisplayName ?? txn.rejectedByDisplayName ?? '—' }}</td>
+          <td class="actions">
+            @if (approvalFor(txn); as approval) {
+              @if (approval.visible) {
+                <span [matTooltip]="approval.reason ?? ''">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="!approval.enabled || busy.pending()"
+                    [attr.aria-label]="'Approve ' + txn.reserveHistoryId"
+                    (click)="approve(txn)"
+                  >
+                    Approve
+                  </button>
+                </span>
+                <span [matTooltip]="approval.reason ?? ''">
+                  <button
+                    mat-button
+                    type="button"
+                    [disabled]="!approval.enabled || busy.pending()"
+                    [attr.aria-label]="'Reject ' + txn.reserveHistoryId"
+                    (click)="reject(txn)"
+                  >
+                    Reject
+                  </button>
+                </span>
+              }
+            }
+            @if (canRetract(txn)) {
+              <button
+                mat-button
+                type="button"
+                [disabled]="busy.pending()"
+                [attr.aria-label]="'Retract ' + txn.reserveHistoryId"
+                (click)="retract(txn)"
+              >
+                Retract
+              </button>
+            }
+            @if (canRetry(txn)) {
+              <button
+                mat-button
+                type="button"
+                [disabled]="busy.pending()"
+                [attr.aria-label]="'Retry posting ' + txn.reserveHistoryId"
+                (click)="retry(txn)"
+              >
+                Retry
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="9" class="empty">No reserve transactions.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</mat-drawer-container>

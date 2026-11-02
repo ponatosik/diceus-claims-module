@@ -41,6 +41,18 @@ A Reserves tab backed by `GET /api/claims/{id}/reserves` (loaded on first open) 
 - **Component**: handler sees no Approve/Reject; supervisor sees them disabled on a Manager-tier row and on own submission; Retract only on own pending rows; Retry only on Failed rows; manager-only override action.
 - **E2E**: handler opens a $25,000 reserve → PendingApproval, no Approve button for handler; switch to supervisor → approve → row Approved, GL status reaches Posted via polling. Supervisor submits $50,000 → own row's Approve disabled; a direct API approve call returns 422 `BR-R-03`.
 
+## Delivery Notes
+
+- Decreases and reversals needed a backend change first: BR-R-01's "> 0" now governs opening a
+  component (Add); Adjust is a signed non-zero delta and Reverse exactly zeroes the balance, with no
+  non-SubrogationRecoverable balance below zero (§6.2) — [ADR-0011](../docs/adr/0011-reserve-decreases-br-r-01-scope.md).
+- The GL posting badge appears only on approved rows: a transaction awaiting approval has nothing
+  enqueued, so its stored `Pending` posting status would mislead.
+- Polling runs only while an *approved* transaction's posting is Pending; in docker-compose the outbox
+  dispatcher runs once a minute, so Pending → Posted typically shows within ~1 minute.
+- Row actions without their own dialog (Approve, Retry) surface a 422's Blocking Condition through the
+  error interceptor's snackbar; the Add Reserve panel shows it inline.
+
 ## Out of Scope
 
 - Claim payments (§2); editing a PendingApproval transaction (must be retracted and resubmitted, §6.4).

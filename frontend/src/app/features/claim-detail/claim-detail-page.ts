@@ -8,6 +8,7 @@ import { CLAIM_TABS, parseClaimTab } from './claim-tabs';
 import { ClaimHeader } from './claim-header';
 import { ClaimOverviewTab } from './claim-overview-tab';
 import { ClaimPartiesTab } from './claim-parties-tab';
+import { ClaimReservesTab } from './claim-reserves-tab';
 
 /** §11.3 Claim Detail: always-visible header over five tabbed sections. */
 @Component({
@@ -20,6 +21,7 @@ import { ClaimPartiesTab } from './claim-parties-tab';
     ClaimHeader,
     ClaimOverviewTab,
     ClaimPartiesTab,
+    ClaimReservesTab,
   ],
   providers: [ClaimDetailStore],
   templateUrl: './claim-detail-page.html',
@@ -29,6 +31,7 @@ export class ClaimDetailPage {
   /** Route param and query params, bound by withComponentInputBinding. */
   readonly claimId = input.required<string>();
   readonly tab = input<string>();
+  readonly highlight = input<string>();
 
   protected readonly store = inject(ClaimDetailStore);
   private readonly router = inject(Router);

@@ -1,0 +1,59 @@
+<header class="panel-header">
+  <h2>Add reserve</h2>
+  <button mat-icon-button type="button" aria-label="Close" (click)="closed.emit()">
+    <mat-icon>close</mat-icon>
+  </button>
+</header>
+
+<form [formGroup]="form" (ngSubmit)="submit()" class="panel-form">
+  <mat-form-field>
+    <mat-label>Component</mat-label>
+    <mat-select formControlName="component">
+      @for (option of componentOptions; track option) {
+        <mat-option [value]="option">{{ componentLabel(option) }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Amount</mat-label>
+    <span matTextPrefix>$&nbsp;</span>
+    <input matInput type="number" step="0.01" formControlName="amount" />
+    <mat-hint>Use a negative amount to decrease an existing reserve.</mat-hint>
+    <mat-error>{{ form.controls.amount.getError('server') ?? 'Enter an amount.' }}</mat-error>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Reason</mat-label>
+    <textarea matInput formControlName="changeReason" rows="3"></textarea>
+    <mat-error>{{
+      form.controls.changeReason.getError('server') ?? 'A reason is required.'
+    }}</mat-error>
+  </mat-form-field>
+
+  <div class="preview" data-testid="reserve-preview">
+    @if (plan().transactionType === 'Add') {
+      Opens a new {{ componentLabel(form.controls.component.value) }} reserve.
+    } @else {
+      Adjusts {{ componentLabel(form.controls.component.value) }}:
+      {{ plan().currentBalance | currency }} → <strong>{{ plan().newBalance | currency }}</strong>
+    }
+  </div>
+  <app-authority-indicator [amount]="amount()" />
+
+  @if (amountProblem(); as problem) {
+    <mat-error role="alert">{{ problem }}</mat-error>
+  }
+  @if (rejection().length > 0) {
+    <div class="blocked" role="alert">
+      @for (condition of rejection(); track $index) {
+        <div>{{ condition.message }}</div>
+      }
+    </div>
+  }
+
+  <div class="actions">
+    <button mat-button type="button" (click)="closed.emit()">Cancel</button>
+    <button mat-flat-button type="submit" [disabled]="!canSubmit()">Submit reserve</button>
+  </div>
+</form>

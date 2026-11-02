@@ -33,7 +33,8 @@ export class ClaimDetailStore {
   private readonly router = inject(Router);
   private readonly reloadRequests = inject(ReloadRequests);
 
-  private readonly claimId = signal<string | null>(null);
+  private readonly currentClaimId = signal<string | null>(null);
+  readonly claimId = this.currentClaimId.asReadonly();
   private readonly claimRevision = signal(0);
 
   /** Bumped whenever the audit log / reserves / documents should be re-fetched. */
@@ -43,7 +44,7 @@ export class ClaimDetailStore {
 
   private readonly claimResource = rxResource({
     params: () => {
-      const claimId = this.claimId();
+      const claimId = this.currentClaimId();
       return claimId === null ? undefined : { claimId, revision: this.claimRevision() };
     },
     stream: ({ params }) => this.claimsApi.get(params.claimId),
@@ -81,7 +82,14 @@ export class ClaimDetailStore {
   }
 
   load(claimId: string): void {
-    this.claimId.set(claimId);
+    this.currentClaimId.set(claimId);
+  }
+
+  /** After any reserve change: the reserves, the header (status/totals) and the audit log (spec 011 story 11). */
+  refreshAfterReserveChange(): void {
+    this.claimRevision.update((n) => n + 1);
+    this.auditRevision.update((n) => n + 1);
+    this.reservesRevision.update((n) => n + 1);
   }
 
   reloadAll(): void {
@@ -124,7 +132,7 @@ export class ClaimDetailStore {
   }
 
   private requireClaimId(): string {
-    const claimId = this.claimId();
+    const claimId = this.currentClaimId();
     if (claimId === null) throw new Error('No claim loaded.');
     return claimId;
   }

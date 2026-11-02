@@ -70,6 +70,17 @@ describe('ClaimDetailStore', () => {
     expect(store.auditRevision()).toBe(auditBefore + 1);
   });
 
+  it('after a reserve change, re-fetches the claim (header) and bumps the reserves and audit revisions', () => {
+    const before = { audit: store.auditRevision(), reserves: store.reservesRevision() };
+
+    store.refreshAfterReserveChange();
+    TestBed.tick();
+
+    expect(api['get']).toHaveBeenCalledTimes(2);
+    expect(store.auditRevision()).toBe(before.audit + 1);
+    expect(store.reservesRevision()).toBe(before.reserves + 1);
+  });
+
   it('does not re-fetch when the mutation fails', async () => {
     api['transition'].mockReturnValue(throwError(() => ({ kind: 'businessRule' }) as ApiError));
 

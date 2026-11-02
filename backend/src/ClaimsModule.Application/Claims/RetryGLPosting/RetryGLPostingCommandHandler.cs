@@ -48,7 +48,7 @@ public class RetryGLPostingCommandHandler(
         // Not in §14.1's event list — added so a retry is as traceable as the failure it answers.
         await auditLogService.LogAsync(
             new AuditLogEntry(
-                history.ClaimId, "GL_POSTING_RETRY_REQUESTED", $"GL posting retry requested for {component.Component} ({history.Amount:C}).",
+                history.ClaimId, "GL_POSTING_RETRY_REQUESTED", $"GL posting retry requested for {component.Component} ({AuditMoney.Format(history.Amount)}).",
                 ReservePostingStatus.Failed.ToString(), ReservePostingStatus.Pending.ToString(), history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 

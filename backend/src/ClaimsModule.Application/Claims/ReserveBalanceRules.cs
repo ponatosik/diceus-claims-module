@@ -1,3 +1,4 @@
+using ClaimsModule.Application.Common;
 using ClaimsModule.Application.Common.Exceptions;
 using ClaimsModule.Domain.Enums;
 
@@ -44,14 +45,14 @@ public static class ReserveBalanceRules
         {
             return [new BlockingCondition(
                 ReversalMustCancelBalance,
-                $"A reversal must exactly cancel the {component} reserve's current balance of {currentBalance:N2}.")];
+                $"A reversal must exactly cancel the {component} reserve's current balance of {AuditMoney.Format(currentBalance)}.")];
         }
 
         if (!mayGoNegative && currentBalance + amount < 0)
         {
             return [new BlockingCondition(
                 BalanceMayNotGoNegative,
-                $"The {component} reserve may not go below zero (current balance {currentBalance:N2}).")];
+                $"The {component} reserve may not go below zero (current balance {AuditMoney.Format(currentBalance)}).")];
         }
 
         return [];

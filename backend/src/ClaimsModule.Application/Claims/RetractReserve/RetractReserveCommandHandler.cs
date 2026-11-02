@@ -47,7 +47,7 @@ public class RetractReserveCommandHandler(
 
         await auditLogService.LogAsync(
             new AuditLogEntry(
-                history.ClaimId, "RESERVE_RETRACTED", $"Reserve retracted: {component.Component} ({history.Amount:C}).",
+                history.ClaimId, "RESERVE_RETRACTED", $"Reserve retracted: {component.Component} ({AuditMoney.Format(history.Amount)}).",
                 null, null, history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 

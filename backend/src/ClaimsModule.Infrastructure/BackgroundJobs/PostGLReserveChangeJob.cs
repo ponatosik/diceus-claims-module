@@ -38,7 +38,7 @@ public class PostGLReserveChangeJob(
         // must never leak into a permanent audit record's formatting. InvariantCulture's own "C"
         // format has no actual currency symbol (renders "¤"), so en-US is pinned explicitly instead.
         var journalDetail =
-            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {history.Amount.ToString("C", CultureInfo.GetCultureInfo("en-US"))}.";
+            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {AuditMoney.Format(history.Amount)}.";
 
         using var activity = BackgroundJobActivitySource.Source.StartActivity(nameof(PostGLReserveChangeJob));
         await auditLogService.LogAsync(new AuditLogEntry(

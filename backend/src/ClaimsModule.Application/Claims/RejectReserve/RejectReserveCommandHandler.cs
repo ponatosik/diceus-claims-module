@@ -53,7 +53,7 @@ public class RejectReserveCommandHandler(
 
         await auditLogService.LogAsync(
             new AuditLogEntry(
-                history.ClaimId, "RESERVE_REJECTED", $"Reserve rejected: {component.Component} ({history.Amount:C}).",
+                history.ClaimId, "RESERVE_REJECTED", $"Reserve rejected: {component.Component} ({AuditMoney.Format(history.Amount)}).",
                 request.RejectionReason, null, history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 

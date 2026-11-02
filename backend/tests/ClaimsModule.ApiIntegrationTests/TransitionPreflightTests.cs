@@ -6,6 +6,7 @@ using ClaimsModule.Application.Claims.OpenReserve;
 using ClaimsModule.Application.Claims.TransitionClaimStatus;
 using ClaimsModule.Application.Policies;
 using ClaimsModule.Domain.Enums;
+using Microsoft.Data.SqlClient;
 
 namespace ClaimsModule.ApiIntegrationTests;
 
@@ -55,6 +56,26 @@ public class TransitionPreflightTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         // Nothing changed: the claim is still Open.
         Assert.Equal("Open", (await client.GetFromJsonAsync<ClaimDetailDto>($"/api/claims/{claim.ClaimId}"))!.Status);
+    }
+
+    [Fact]
+    public async Task Closing_a_claim_with_no_active_claimant_reports_CC_03_as_blocking()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateOpenClaimAsync(client);
+        // The API refuses to remove the last Claimant, so the CC-03 state is seeded directly.
+        await using (var connection = new SqlConnection(Fixture.ClaimsConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE ClaimParties SET IsActive = 0 WHERE ClaimId = @claimId";
+            command.Parameters.AddWithValue("@claimId", claim.ClaimId);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var preflight = await PreflightAsync(client, claim.ClaimId, ClaimStatus.Closed);
+
+        Assert.Equal("CC-03", Assert.Single(preflight.BlockingConditions).Code);
     }
 
     [Fact]

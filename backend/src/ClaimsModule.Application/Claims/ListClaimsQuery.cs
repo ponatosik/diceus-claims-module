@@ -17,7 +17,7 @@ public record ListClaimsQuery(
     string? Search,
     int Page,
     int PageSize,
-    string? AssignedHandler = null) : IRequest<PagedResult<ClaimSummaryDto>>;
+    string? AssignedHandlerName = null) : IRequest<PagedResult<ClaimSummaryDto>>;
 
 public class ListClaimsQueryHandler(
     IClaimRepository claimRepository,
@@ -29,9 +29,9 @@ public class ListClaimsQueryHandler(
     public async Task<PagedResult<ClaimSummaryDto>> Handle(ListClaimsQuery request, CancellationToken cancellationToken)
     {
         // §11.1's "assigned handler (text search)": resolved to handler ids via the user directory.
-        IReadOnlyCollection<Guid>? assignedHandlerIds = string.IsNullOrWhiteSpace(request.AssignedHandler)
+        IReadOnlyCollection<Guid>? assignedHandlerIds = string.IsNullOrWhiteSpace(request.AssignedHandlerName)
             ? null
-            : [.. await userDirectory.FindIdsByDisplayNameAsync(request.AssignedHandler.Trim(), cancellationToken)];
+            : [.. await userDirectory.FindIdsByDisplayNameAsync(request.AssignedHandlerName.Trim(), cancellationToken)];
 
         var filter = new ClaimListFilter(
             request.Statuses, request.DateFrom, request.DateTo, request.AssignedHandlerId,

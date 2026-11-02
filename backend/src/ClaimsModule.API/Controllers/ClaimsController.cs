@@ -47,7 +47,8 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         [FromQuery] DateOnly? dateFrom,
         [FromQuery] DateOnly? dateTo,
         [FromQuery] Guid? assignedHandlerId,
-        [FromQuery] string? assignedHandler,
+        // §11.1's "assigned handler (text search)" — partial display-name match, distinct from assignedHandlerId.
+        [FromQuery(Name = "assignedHandler")] string? assignedHandlerName,
         [FromQuery] string? causeOfLossCode,
         [FromQuery] Guid? policyId,
         [FromQuery] string? search,
@@ -58,7 +59,7 @@ public class ClaimsController(IMediator mediator) : ControllerBase
         var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var query = new ListClaimsQuery(
             status, dateFrom, dateTo, assignedHandlerId, causeOfLossCode, policyId, search,
-            normalizedPage, normalizedPageSize, assignedHandler);
+            normalizedPage, normalizedPageSize, assignedHandlerName);
         var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }

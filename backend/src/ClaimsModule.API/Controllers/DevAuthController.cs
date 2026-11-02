@@ -1,5 +1,6 @@
 using ClaimsModule.API.Authentication;
-using ClaimsModule.Application.Common;
+using ClaimsModule.Application.Users;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -19,7 +20,7 @@ public record DevTokenResponse(string AccessToken, Guid UserId, string DisplayNa
 public class DevAuthController(
     IOptions<DevAuthOptions> devAuthOptions,
     IOptions<JwtOptions> jwtOptions,
-    IUserDirectory userDirectory) : ControllerBase
+    IMediator mediator) : ControllerBase
 {
     [HttpPost("token")]
     public async Task<ActionResult<DevTokenResponse>> CreateToken([FromBody] DevTokenRequest request, CancellationToken cancellationToken)
@@ -29,7 +30,7 @@ public class DevAuthController(
             return NotFound();
         }
 
-        var user = await userDirectory.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await mediator.Send(new GetDemoUserQuery(request.UserId), cancellationToken);
         if (user is null)
         {
             return BadRequest("UserId must be one of the seeded demo users.");

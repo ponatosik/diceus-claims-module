@@ -1,0 +1,72 @@
+<header class="page-header">
+  <a mat-icon-button routerLink="/claims" aria-label="Back to claims"
+    ><mat-icon>arrow_back</mat-icon></a
+  >
+  <h1>Log new claim</h1>
+</header>
+
+<div class="wizard">
+  @if (busy()) {
+    <mat-progress-bar mode="indeterminate" class="busy" />
+  }
+
+  <mat-stepper linear>
+    <mat-step [stepControl]="store.form.controls.loss" label="Policy & Loss Details">
+      <div data-testid="step-loss">
+        <ng-container
+          *ngTemplateOutlet="stepErrors; context: { $implicit: store.stepErrors().loss }"
+        />
+        <app-fnol-loss-step />
+        <div class="actions">
+          <a mat-button routerLink="/claims">Cancel</a>
+          <button mat-flat-button type="button" [disabled]="busy()" (click)="next('loss')">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <mat-step [stepControl]="store.form.controls.parties" label="Parties & Risk Objects">
+      <div data-testid="step-parties">
+        <ng-container
+          *ngTemplateOutlet="stepErrors; context: { $implicit: store.stepErrors().parties }"
+        />
+        <app-fnol-parties-step />
+        <div class="actions">
+          <button mat-button matStepperPrevious type="button">Back</button>
+          <button mat-flat-button type="button" [disabled]="busy()" (click)="next('parties')">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <mat-step label="Initial Reserve & Review">
+      <div data-testid="step-reserve">
+        <ng-container
+          *ngTemplateOutlet="stepErrors; context: { $implicit: store.stepErrors().reserve }"
+        />
+        <app-fnol-reserve-step />
+        <div class="actions">
+          <button mat-button matStepperPrevious type="button">Back</button>
+          <button mat-flat-button type="button" [disabled]="!canCreate()" (click)="create()">
+            Create Claim
+          </button>
+        </div>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</div>
+
+<ng-template #stepErrors let-messages>
+  @if (messages.length > 0) {
+    <div class="step-errors" role="alert">
+      <strong>Fix these before continuing:</strong>
+      <ul>
+        @for (message of messages; track $index) {
+          <li>{{ message }}</li>
+        }
+      </ul>
+    </div>
+  }
+</ng-template>

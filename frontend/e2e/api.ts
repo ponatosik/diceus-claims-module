@@ -57,6 +57,12 @@ export class ApiSeeder {
       throw new Error(`transition failed: ${response.status()} ${await response.text()}`);
   }
 
+  async get<T>(path: string): Promise<T> {
+    const response = await this.request.get(path, { headers: this.headers() });
+    if (!response.ok()) throw new Error(`GET ${path} failed: ${response.status()}`);
+    return (await response.json()) as T;
+  }
+
   private headers() {
     return { Authorization: `Bearer ${this.token}` };
   }

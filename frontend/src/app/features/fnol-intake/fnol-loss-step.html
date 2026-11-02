@@ -1,0 +1,81 @@
+<form [formGroup]="group" class="step-form">
+  <h3>Policy</h3>
+  <app-policy-search />
+
+  <h3>Loss</h3>
+  <div class="row">
+    <mat-form-field>
+      <mat-label>Loss date</mat-label>
+      <input
+        matInput
+        [matDatepicker]="lossDatePicker"
+        [max]="maxLossDate"
+        formControlName="lossDate"
+      />
+      <mat-datepicker-toggle matIconSuffix [for]="lossDatePicker" />
+      <mat-datepicker #lossDatePicker />
+      @if (group.controls.lossDate.hasError('futureDate')) {
+        <mat-error>Loss date cannot be in the future.</mat-error>
+      } @else if (group.controls.lossDate.hasError('required')) {
+        <mat-error>Loss date is required.</mat-error>
+      } @else if (group.controls.lossDate.hasError('server')) {
+        <mat-error>{{ group.controls.lossDate.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Loss time</mat-label>
+      <input matInput [matTimepicker]="lossTimePicker" formControlName="lossTime" />
+      <mat-timepicker-toggle matIconSuffix [for]="lossTimePicker" />
+      <mat-timepicker #lossTimePicker />
+      <mat-hint>Optional</mat-hint>
+      @if (group.controls.lossTime.hasError('futureTime')) {
+        <mat-error>Loss time cannot be in the future.</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field class="wide">
+      <mat-label>Cause of loss</mat-label>
+      <input matInput formControlName="causeOfLossCode" [matAutocomplete]="causes" />
+      <mat-autocomplete #causes="matAutocomplete" [displayWith]="displayCause">
+        @for (cause of causeOptions(); track cause.code) {
+          <mat-option [value]="cause"
+            >{{ cause.name }} <span class="code">{{ cause.code }}</span></mat-option
+          >
+        }
+      </mat-autocomplete>
+      @if (group.controls.causeOfLossCode.hasError('server')) {
+        <mat-error>{{ group.controls.causeOfLossCode.getError('server') }}</mat-error>
+      } @else if (group.controls.causeOfLossCode.invalid) {
+        <mat-error>Choose a cause of loss from the list.</mat-error>
+      }
+    </mat-form-field>
+  </div>
+
+  <mat-form-field class="full">
+    <mat-label>Loss description</mat-label>
+    <textarea matInput formControlName="lossDescription" rows="4"></textarea>
+    <mat-hint [class.met]="descriptionLength() >= minDescription">
+      {{ descriptionLength() }} / {{ minDescription }} minimum
+    </mat-hint>
+    @if (group.controls.lossDescription.hasError('server')) {
+      <mat-error>{{ group.controls.lossDescription.getError('server') }}</mat-error>
+    } @else {
+      <mat-error>Describe the loss in at least {{ minDescription }} characters.</mat-error>
+    }
+  </mat-form-field>
+
+  <div class="row">
+    <mat-form-field class="wide">
+      <mat-label>Loss location</mat-label>
+      <input matInput formControlName="lossLocation" />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Estimated loss amount</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput type="number" min="0" step="0.01" formControlName="estimatedLossAmount" />
+      <mat-error>Must be zero or more.</mat-error>
+    </mat-form-field>
+  </div>
+</form>

@@ -1,0 +1,31 @@
+.reserve-fields {
+  align-items: center;
+  margin-top: 16px;
+}
+
+.review {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    width: 200px;
+    color: var(--mat-sys-on-surface-variant);
+    font-weight: 500;
+  }
+
+  .pre {
+    white-space: pre-wrap;
+  }
+
+  app-authority-indicator {
+    margin-left: 12px;
+  }
+}

@@ -1,0 +1,164 @@
+<section aria-labelledby="parties-heading">
+  <h3 id="parties-heading">Parties</h3>
+
+  @if (claimantMissing()) {
+    <p class="warning" role="alert">At least one Claimant is required.</p>
+  } @else if (partiesServerError(); as message) {
+    <p class="warning" role="alert">{{ message }}</p>
+  }
+
+  <div class="cards">
+    @for (party of parties(); track $index) {
+      <div class="card" data-testid="party-card">
+        <span class="role-badge">{{ roleLabel(party.partyRole) }}</span>
+        <div class="card-body">
+          <div class="card-title">{{ partyName(party) }}</div>
+          <div class="card-meta">
+            {{ party.partyType }}{{ party.email ? ' · ' + party.email : ''
+            }}{{ party.phone ? ' · ' + party.phone : '' }}
+          </div>
+        </div>
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Remove ' + partyName(party)"
+          (click)="removeParty($index)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (partyDraft(); as draft) {
+    <form class="draft-row" [formGroup]="draft" (ngSubmit)="addParty(draft)" aria-label="New party">
+      <mat-form-field>
+        <mat-label>Party role</mat-label>
+        <mat-select formControlName="partyRole">
+          @for (role of partyRoles; track role) {
+            <mat-option [value]="role">{{ roleLabel(role) }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="narrow">
+        <mat-label>Party type</mat-label>
+        <mat-select formControlName="partyType">
+          @for (type of partyTypes; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (draftPartyType() === 'Person') {
+        <mat-form-field>
+          <mat-label>First name</mat-label>
+          <input matInput formControlName="firstName" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Last name</mat-label>
+          <input matInput formControlName="lastName" />
+        </mat-form-field>
+      } @else {
+        <mat-form-field class="wide">
+          <mat-label>Company name</mat-label>
+          <input matInput formControlName="companyName" />
+        </mat-form-field>
+      }
+      <mat-form-field>
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" />
+        <mat-error>Enter a valid email address.</mat-error>
+      </mat-form-field>
+      <mat-form-field class="narrow">
+        <mat-label>Phone</mat-label>
+        <input matInput formControlName="phone" />
+      </mat-form-field>
+      <div class="draft-actions">
+        @if (draft.hasError('nameRequired') && draft.touched) {
+          <span class="warning">{{
+            draftPartyType() === 'Person'
+              ? 'First and last name are required.'
+              : 'Company name is required.'
+          }}</span>
+        }
+        <button mat-button type="button" (click)="partyDraft.set(null)">Cancel</button>
+        <button mat-flat-button type="submit">Add</button>
+      </div>
+    </form>
+  } @else {
+    <button mat-stroked-button type="button" (click)="openPartyDraft()">
+      <mat-icon>person_add</mat-icon>
+      Add Party
+    </button>
+  }
+</section>
+
+<section aria-labelledby="risk-objects-heading">
+  <h3 id="risk-objects-heading">Risk objects</h3>
+
+  @if (riskObjects().length === 0) {
+    <p class="advisory">No risk objects added — at least one is recommended.</p>
+  }
+
+  <div class="cards">
+    @for (riskObject of riskObjects(); track $index) {
+      <div class="card" data-testid="risk-object-card">
+        <span class="role-badge">{{ riskObject.assetType }}</span>
+        <div class="card-body">
+          <div class="card-title">{{ riskObject.assetDescription }}</div>
+          <div class="card-meta">
+            {{ riskObject.damageDescription || 'No damage description'
+            }}{{ riskObject.assetReference ? ' · Ref ' + riskObject.assetReference : '' }}
+          </div>
+        </div>
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Remove ' + riskObject.assetDescription"
+          (click)="removeRiskObject($index)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (riskObjectDraft(); as draft) {
+    <form
+      class="draft-row"
+      [formGroup]="draft"
+      (ngSubmit)="addRiskObject(draft)"
+      aria-label="New risk object"
+    >
+      <mat-form-field class="narrow">
+        <mat-label>Asset type</mat-label>
+        <mat-select formControlName="assetType">
+          @for (type of assetTypes; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="wide">
+        <mat-label>Asset description</mat-label>
+        <input matInput formControlName="assetDescription" />
+        <mat-error>Asset description is required.</mat-error>
+      </mat-form-field>
+      <mat-form-field class="wide">
+        <mat-label>Damage description</mat-label>
+        <input matInput formControlName="damageDescription" />
+      </mat-form-field>
+      <mat-form-field class="narrow">
+        <mat-label>Reference number</mat-label>
+        <input matInput formControlName="assetReference" />
+      </mat-form-field>
+      <div class="draft-actions">
+        <button mat-button type="button" (click)="riskObjectDraft.set(null)">Cancel</button>
+        <button mat-flat-button type="submit">Add</button>
+      </div>
+    </form>
+  } @else {
+    <button mat-stroked-button type="button" (click)="openRiskObjectDraft()">
+      <mat-icon>add</mat-icon>
+      Add Risk Object
+    </button>
+  }
+</section>

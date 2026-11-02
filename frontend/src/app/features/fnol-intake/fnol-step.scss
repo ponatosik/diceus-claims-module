@@ -1,0 +1,44 @@
+:host {
+  display: block;
+}
+
+h3 {
+  margin: 8px 0 12px;
+  font: var(--mat-sys-title-medium);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wide {
+  flex: 1;
+  min-width: 280px;
+}
+
+.full {
+  width: 100%;
+}
+
+.code {
+  margin-left: 8px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-small);
+}
+
+.met {
+  color: var(--color-positive);
+}
+
+.advisory {
+  margin: 4px 0 16px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.warning {
+  margin: 4px 0 16px;
+  color: var(--color-negative);
+  font-weight: 500;
+}

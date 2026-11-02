@@ -9,8 +9,8 @@ monitoring, and document management, per `REQUIREMENTS.md`.
 
 | Area | Status |
 |---|---|
-| Backend (.NET 9, Clean Architecture, CQRS) | **Done.** Slices `001`–`006` shipped, reviewed, and tested (`006` = the gaps the frontend needs). 273/273 tests passing. |
-| Frontend (Angular 22) | **In progress.** Shell, demo auth, error handling, typed API layer and theme done (spec `007`); the three screens (specs `008`–`012`) are placeholders. |
+| Backend (.NET 9, Clean Architecture, CQRS) | **Done.** Slices `001`–`006` shipped, reviewed, and tested (`006` = the gaps the frontend needs), plus ADR-0011 (reserve decreases/reversals). 292/292 tests passing. |
+| Frontend (Angular 22) | **Done.** Specs `007`–`012`: shell + demo auth, claims dashboard, FNOL wizard, and Claim Detail (header, Overview, Parties, Reserves, Documents, Audit Log). 259 unit/component tests + 15 Playwright end-to-end tests against the docker-compose stack. |
 | Local full stack (`docker-compose.yml`) | **Done.** SQL Server + migrations + API + nginx-served frontend in one command. |
 | Azure deployment (§19) | **Not done.** Deliberately scoped out of the backend effort — see [`wayfinder/map.md`](wayfinder/map.md)'s "Out of scope" section. The app runs locally only; see "Azure deployment" below for what reproducing a deployment would require. |
 | CI/CD pipeline (§19/NFR-AZ-03) | **Not done.** No pipeline definition exists yet, for the same reason as Azure deployment. |

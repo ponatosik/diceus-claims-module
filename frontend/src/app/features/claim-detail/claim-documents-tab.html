@@ -1,0 +1,79 @@
+<div class="toolbar">
+  <h2>Documents</h2>
+  <span class="spacer"></span>
+  <input
+    #fileInput
+    type="file"
+    hidden
+    [accept]="accept"
+    data-testid="document-file-input"
+    (change)="filePicked(fileInput)"
+  />
+  <button
+    mat-flat-button
+    type="button"
+    [disabled]="store.uploadPercent() !== null"
+    (click)="fileInput.click()"
+  >
+    <mat-icon>upload_file</mat-icon>
+    Upload
+  </button>
+</div>
+
+@if (store.uploadPercent(); as percent) {
+  <div class="upload-progress" role="status">
+    <mat-progress-bar mode="determinate" [value]="percent" />
+    <span>Uploading… {{ percent }}%</span>
+  </div>
+} @else if (store.uploadPercent() === 0) {
+  <div class="upload-progress" role="status">
+    <mat-progress-bar mode="indeterminate" />
+    <span>Uploading…</span>
+  </div>
+}
+
+<table class="documents" aria-label="Documents">
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Type</th>
+      <th scope="col">Uploaded</th>
+      <th scope="col">Uploaded by</th>
+      <th scope="col" class="size">Size</th>
+      <th scope="col"><span class="visually-hidden">Download</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (document of store.documents(); track document.claimDocumentId) {
+      <tr
+        [attr.data-testid]="'document-' + document.claimDocumentId"
+        [class.highlighted]="document.claimDocumentId === highlight()"
+      >
+        <td class="name">
+          {{ document.documentName }}
+          @if (document.notes) {
+            <div class="note">{{ document.notes }}</div>
+          }
+        </td>
+        <td>{{ typeLabel(document.documentType) }}</td>
+        <td>{{ document.uploadedAt | date: 'medium' }}</td>
+        <td>{{ document.uploadedByDisplayName ?? '—' }}</td>
+        <td class="size">{{ fileSize(document.fileSizeBytes) }}</td>
+        <td class="actions">
+          <button
+            mat-icon-button
+            type="button"
+            [attr.aria-label]="'Download ' + document.documentName"
+            (click)="download(document)"
+          >
+            <mat-icon>download</mat-icon>
+          </button>
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="6" class="empty">{{ store.loaded() ? 'No documents yet.' : 'Loading…' }}</td>
+      </tr>
+    }
+  </tbody>
+</table>

@@ -4,9 +4,11 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { Router } from '@angular/router';
 import { Skeleton } from '../../shared/ui/skeleton';
 import { ClaimDetailStore } from './claim-detail.store';
-import { CLAIM_TABS, parseClaimTab } from './claim-tabs';
+import { CLAIM_TABS, parseClaimTab, tabChangeQueryParams } from './claim-tabs';
 import { ClaimHeader } from './claim-header';
 import { ClaimOverviewTab } from './claim-overview-tab';
+import { ClaimAuditTab } from './claim-audit-tab';
+import { ClaimDocumentsTab } from './claim-documents-tab';
 import { ClaimPartiesTab } from './claim-parties-tab';
 import { ClaimReservesTab } from './claim-reserves-tab';
 
@@ -22,6 +24,8 @@ import { ClaimReservesTab } from './claim-reserves-tab';
     ClaimOverviewTab,
     ClaimPartiesTab,
     ClaimReservesTab,
+    ClaimDocumentsTab,
+    ClaimAuditTab,
   ],
   providers: [ClaimDetailStore],
   templateUrl: './claim-detail-page.html',
@@ -43,11 +47,8 @@ export class ClaimDetailPage {
   }
 
   protected selectTab(index: number): void {
-    const tab = CLAIM_TABS[index];
-    void this.router.navigate([], {
-      queryParams: { tab: tab === 'overview' ? null : tab, highlight: null },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
+    const queryParams = tabChangeQueryParams(this.tab(), index);
+    if (queryParams === null) return;
+    void this.router.navigate([], { queryParams, queryParamsHandling: 'merge', replaceUrl: true });
   }
 }

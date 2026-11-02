@@ -24,12 +24,16 @@
             <div class="tab-body"><app-claim-reserves-tab [highlight]="highlight()" /></div>
           </ng-template>
         </mat-tab>
-        <mat-tab label="Documents"
-          ><div class="tab-body placeholder">Documents arrive in a later slice.</div></mat-tab
-        >
-        <mat-tab label="Audit Log"
-          ><div class="tab-body placeholder">The audit log arrives in a later slice.</div></mat-tab
-        >
+        <mat-tab label="Documents">
+          <ng-template matTabContent>
+            <div class="tab-body"><app-claim-documents-tab [highlight]="highlight()" /></div>
+          </ng-template>
+        </mat-tab>
+        <mat-tab label="Audit Log">
+          <ng-template matTabContent>
+            <div class="tab-body"><app-claim-audit-tab /></div>
+          </ng-template>
+        </mat-tab>
       </mat-tab-group>
     </section>
   </div>

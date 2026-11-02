@@ -1,0 +1,45 @@
+<div class="toolbar">
+  <h2>Audit log</h2>
+  <span class="count">{{ store.totalCount() }} events</span>
+</div>
+
+<div class="list-wrapper">
+  @if (store.loading() && store.loaded()) {
+    <mat-progress-bar mode="indeterminate" class="loading-bar" />
+  }
+  <ol class="audit" aria-label="Audit log">
+    @for (entry of store.entries(); track entry.auditLogId) {
+      <li class="entry" [attr.data-testid]="'audit-' + entry.auditLogId">
+        <time class="when" [attr.datetime]="entry.createdAt">{{
+          entry.createdAt | date: 'medium'
+        }}</time>
+        <span class="event" [class]="'event family-' + family(entry.eventType)">{{
+          entry.eventType
+        }}</span>
+        <div class="body">
+          <div class="description">{{ entry.description }}</div>
+          <div class="meta">
+            <span>{{ entry.userDisplayName ?? 'System' }}</span>
+            @if (linkFor(entry); as link) {
+              ·
+              <a [routerLink]="[]" [queryParams]="link.queryParams" queryParamsHandling="merge">{{
+                link.text
+              }}</a>
+            }
+          </div>
+        </div>
+      </li>
+    } @empty {
+      <li class="empty">{{ store.loaded() ? 'No audit events.' : 'Loading…' }}</li>
+    }
+  </ol>
+</div>
+
+<mat-paginator
+  [length]="store.totalCount()"
+  [pageIndex]="store.page() - 1"
+  [pageSize]="store.pageSize()"
+  [pageSizeOptions]="pageSizes"
+  aria-label="Audit log pages"
+  (page)="store.changePage($event.pageIndex, $event.pageSize)"
+/>

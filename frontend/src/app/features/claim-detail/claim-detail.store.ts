@@ -92,6 +92,12 @@ export class ClaimDetailStore {
     this.reservesRevision.update((n) => n + 1);
   }
 
+  /** After a document upload: the documents list and the audit log (DOCUMENT_UPLOADED). */
+  refreshAfterDocumentChange(): void {
+    this.documentsRevision.update((n) => n + 1);
+    this.auditRevision.update((n) => n + 1);
+  }
+
   reloadAll(): void {
     this.claimRevision.update((n) => n + 1);
     this.auditRevision.update((n) => n + 1);

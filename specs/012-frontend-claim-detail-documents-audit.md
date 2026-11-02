@@ -36,6 +36,17 @@ A Documents tab over `GET/POST /api/claims/{id}/documents` with progress-reporti
 - **Component**: upload dialog requires a type; download triggers a list re-fetch and opens the returned URL; audit tab renders no edit/delete controls.
 - **E2E**: upload a small PDF as handler → appears in the list and a `DOCUMENT_UPLOADED` audit entry links back to it.
 
+## Delivery Notes
+
+- Local-filesystem download URLs are API-relative (`/uploads/…`) and are resolved against the
+  runtime `apiBaseUrl`; Azure SAS URLs are absolute and used as-is. The API serves local files as
+  attachments, so the new tab becomes a file download.
+- The Documents and Audit tabs are lazy (`matTabContent`), like Reserves.
+- Arriving via an audit link (`?tab=…&highlight=…`) used to lose the highlight, because the tab group
+  reports programmatic switches too; the page now only rewrites the URL for a user's own tab change.
+- Found while building this slice: audit descriptions rendered money as `¤9,000.00` on a
+  culture-invariant host — fixed in the backend (`AuditMoney.Format`, always en-US).
+
 ## Out of Scope
 
 - Document deletion or preview (not in §10/§11).

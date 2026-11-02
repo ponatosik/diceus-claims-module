@@ -1,0 +1,98 @@
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-medium);
+  }
+
+  .count {
+    margin: 4px 0 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface);
+
+  mat-form-field {
+    width: 200px;
+  }
+
+  .date-range {
+    width: 250px;
+  }
+
+  .search {
+    flex: 1;
+    min-width: 240px;
+  }
+}
+
+.results {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+}
+
+.loading-bar {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+}
+
+.claims-table {
+  width: 100%;
+}
+
+.claim-row {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-surface-container);
+    outline: none;
+  }
+}
+
+.claim-number {
+  font-weight: 500;
+}
+
+.amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.message {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .title {
+    font: var(--mat-sys-title-medium);
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+app-skeleton {
+  display: block;
+  padding: 16px;
+}

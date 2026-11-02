@@ -1,0 +1,145 @@
+<header class="page-header">
+  <div>
+    <h1>Claims</h1>
+    <p class="count" aria-live="polite">
+      {{ store.totalCount() }} {{ store.totalCount() === 1 ? 'claim' : 'claims' }}
+    </p>
+  </div>
+  <a mat-flat-button routerLink="/claims/new">
+    <mat-icon>add</mat-icon>
+    Log New Claim
+  </a>
+</header>
+
+<form class="filter-bar" [formGroup]="filters" aria-label="Filter claims">
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select formControlName="statuses" multiple data-testid="status-filter">
+      @for (status of statuses; track status) {
+        <mat-option [value]="status">{{ statusLabel(status) }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic" class="date-range">
+    <mat-label>Loss date</mat-label>
+    <mat-date-range-input [rangePicker]="lossDatePicker">
+      <input matStartDate formControlName="dateFrom" placeholder="From" />
+      <input matEndDate formControlName="dateTo" placeholder="To" />
+    </mat-date-range-input>
+    <mat-datepicker-toggle matIconSuffix [for]="lossDatePicker" />
+    <mat-date-range-picker #lossDatePicker />
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Assigned handler</mat-label>
+    <input matInput formControlName="assignedHandler" />
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Cause of loss</mat-label>
+    <mat-select formControlName="causeOfLossCode">
+      <mat-option value="">All causes</mat-option>
+      @for (code of causeOfLossCodes.value() ?? []; track code.code) {
+        <mat-option [value]="code.code">{{ code.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic" class="search">
+    <mat-label>Search claim number or client</mat-label>
+    <input matInput formControlName="search" />
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+
+  @if (store.hasActiveFilters()) {
+    <button mat-button type="button" (click)="store.clearFilters()">Clear filters</button>
+  }
+</form>
+
+<section class="results">
+  @if (store.loading() && store.loaded()) {
+    <mat-progress-bar mode="indeterminate" class="loading-bar" />
+  }
+
+  @if (!store.loaded()) {
+    @if (store.failed()) {
+      <div class="message">
+        <p>Claims couldn't be loaded.</p>
+        <button mat-stroked-button type="button" (click)="store.retry()">Try again</button>
+      </div>
+    } @else {
+      <app-skeleton [lines]="8" />
+    }
+  } @else if (store.claims().length === 0) {
+    <div class="message empty">
+      <mat-icon>search_off</mat-icon>
+      <p class="title">No claims match these filters</p>
+      @if (store.hasActiveFilters()) {
+        <button mat-stroked-button type="button" (click)="store.clearFilters()">
+          Clear filters
+        </button>
+      } @else {
+        <p>Log the first claim to get started.</p>
+      }
+    </div>
+  } @else {
+    <table mat-table [dataSource]="store.claims()" class="claims-table">
+      <ng-container matColumnDef="claimNumber">
+        <th mat-header-cell *matHeaderCellDef>Claim number</th>
+        <td mat-cell *matCellDef="let claim" class="claim-number">{{ claim.claimNumber }}</td>
+      </ng-container>
+      <ng-container matColumnDef="policyNumber">
+        <th mat-header-cell *matHeaderCellDef>Policy number</th>
+        <td mat-cell *matCellDef="let claim">{{ claim.policyNumber ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="clientName">
+        <th mat-header-cell *matHeaderCellDef>Client name</th>
+        <td mat-cell *matCellDef="let claim">{{ claim.clientName ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="lossDate">
+        <th mat-header-cell *matHeaderCellDef>Loss date</th>
+        <td mat-cell *matCellDef="let claim">{{ claim.lossDate | date: 'mediumDate' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="causeOfLoss">
+        <th mat-header-cell *matHeaderCellDef>Cause of loss</th>
+        <td mat-cell *matCellDef="let claim">
+          {{ claim.causeOfLossName ?? claim.causeOfLossCode ?? '—' }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let claim"><app-status-badge [status]="claim.status" /></td>
+      </ng-container>
+      <ng-container matColumnDef="totalReserves">
+        <th mat-header-cell *matHeaderCellDef class="amount">Total reserves</th>
+        <td mat-cell *matCellDef="let claim" class="amount">
+          {{ claim.totalReserves | currency }}
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr
+        mat-row
+        *matRowDef="let claim; columns: columns"
+        class="claim-row"
+        tabindex="0"
+        [attr.aria-label]="'Open claim ' + claim.claimNumber"
+        (click)="store.open(claim.claimId)"
+        (keydown.enter)="store.open(claim.claimId)"
+      ></tr>
+    </table>
+  }
+
+  @if (store.loaded()) {
+    <mat-paginator
+      [length]="store.totalCount()"
+      [pageIndex]="store.state().page - 1"
+      [pageSize]="store.state().pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      showFirstLastButtons
+      aria-label="Claims pages"
+      (page)="store.changePage($event.pageIndex, $event.pageSize)"
+    />
+  }
+</section>

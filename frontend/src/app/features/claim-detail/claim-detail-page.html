@@ -1,0 +1,37 @@
+@if (store.claim()) {
+  <div class="detail">
+    <app-claim-header />
+
+    <section class="tabs-card">
+      @if (store.loading()) {
+        <mat-progress-bar mode="indeterminate" class="loading-bar" />
+      }
+      <mat-tab-group
+        [selectedIndex]="selectedIndex()"
+        (selectedIndexChange)="selectTab($event)"
+        animationDuration="0ms"
+        mat-stretch-tabs="false"
+      >
+        <mat-tab label="Overview"
+          ><div class="tab-body"><app-claim-overview-tab /></div
+        ></mat-tab>
+        <mat-tab label="Parties"
+          ><div class="tab-body"><app-claim-parties-tab /></div
+        ></mat-tab>
+        <mat-tab label="Reserves"
+          ><div class="tab-body placeholder">Reserves arrive in the next slice.</div></mat-tab
+        >
+        <mat-tab label="Documents"
+          ><div class="tab-body placeholder">Documents arrive in a later slice.</div></mat-tab
+        >
+        <mat-tab label="Audit Log"
+          ><div class="tab-body placeholder">The audit log arrives in a later slice.</div></mat-tab
+        >
+      </mat-tab-group>
+    </section>
+  </div>
+} @else if (store.loadFailed()) {
+  <p class="message">This claim couldn't be loaded.</p>
+} @else {
+  <app-skeleton [lines]="10" />
+}

@@ -1,0 +1,27 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tabs-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+}
+
+.loading-bar {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+}
+
+.tab-body {
+  padding: 24px;
+}
+
+.placeholder,
+.message {
+  color: var(--mat-sys-on-surface-variant);
+}

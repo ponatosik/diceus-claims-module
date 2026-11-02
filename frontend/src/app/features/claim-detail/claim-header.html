@@ -1,0 +1,60 @@
+@if (claim(); as claim) {
+  <header class="claim-header">
+    <div class="identity">
+      <h1 data-testid="claim-number">{{ claim.claimNumber }}</h1>
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Copy claim number"
+        matTooltip="Copy claim number"
+        [cdkCopyToClipboard]="claim.claimNumber"
+        (cdkCopyToClipboardCopied)="copied()"
+      >
+        <mat-icon>content_copy</mat-icon>
+      </button>
+      <app-status-badge [status]="claim.status" data-testid="claim-status" />
+      <span class="spacer"></span>
+      @if (transitions().length > 0) {
+        <button
+          mat-flat-button
+          type="button"
+          [matMenuTriggerFor]="transitionMenu"
+          data-testid="change-status"
+        >
+          Change status
+          <mat-icon iconPositionEnd>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #transitionMenu="matMenu">
+          @for (target of transitions(); track target) {
+            <button mat-menu-item type="button" (click)="openTransition(claim, target)">
+              {{ statusLabel(target) }}
+            </button>
+          }
+        </mat-menu>
+      }
+    </div>
+
+    <dl class="facts">
+      <div>
+        <dt>Policy</dt>
+        <dd>{{ claim.policyNumber ?? 'No policy linked' }}</dd>
+      </div>
+      <div>
+        <dt>Client</dt>
+        <dd>{{ claim.clientName ?? '—' }}</dd>
+      </div>
+      <div>
+        <dt>Loss date</dt>
+        <dd>{{ claim.lossEvent.lossDate | calendarDay }}</dd>
+      </div>
+      <div>
+        <dt>Cause of loss</dt>
+        <dd>{{ claim.causeOfLossName ?? claim.lossEvent.causeOfLossCode }}</dd>
+      </div>
+      <div>
+        <dt>Assigned handler</dt>
+        <dd>{{ claim.assignedHandler?.displayName ?? 'Unassigned' }}</dd>
+      </div>
+    </dl>
+  </header>
+}

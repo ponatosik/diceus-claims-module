@@ -1,0 +1,75 @@
+<h2 mat-dialog-title>Change status to {{ targetLabel }}</h2>
+<mat-dialog-content>
+  <p class="summary">{{ data.claimNumber }}: {{ fromLabel }} → {{ targetLabel }}</p>
+
+  @if (preflight() === undefined) {
+    <div class="loading"><mat-spinner diameter="28" /> Checking the transition…</div>
+  } @else if (preflight() === null) {
+    <p class="blocked">The transition couldn't be checked. Close this dialog and try again.</p>
+  } @else {
+    @if (isClosing) {
+      <h3>Closure checklist</h3>
+      <ul class="checklist" aria-label="Closure checklist">
+        @for (check of closureChecks(); track check.code) {
+          <li [class.failed]="check.failure !== null" [attr.data-testid]="'check-' + check.code">
+            <span class="mark" aria-hidden="true">{{ check.failure === null ? '✓' : '✗' }}</span>
+            <span>
+              <strong>{{ check.code }}</strong> {{ check.label }}
+              @if (check.failure !== null) {
+                <span class="reason">{{ check.failure }}</span>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (otherBlockingConditions().length > 0) {
+      <div class="blocked" role="alert">
+        <strong>This transition is blocked:</strong>
+        <ul>
+          @for (condition of otherBlockingConditions(); track $index) {
+            <li>{{ condition.message }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @for (warning of preflight()!.warnings; track warning.code) {
+      <p class="warning" role="status">
+        <strong>{{ warning.code }}</strong> {{ warning.message }}
+      </p>
+    }
+
+    @if (preflight()!.requiresReason) {
+      <mat-form-field class="full">
+        <mat-label>Reason</mat-label>
+        <textarea matInput [formControl]="reason" rows="3" required></textarea>
+      </mat-form-field>
+    }
+
+    @if (preflight()!.requiresJustificationNote) {
+      <mat-form-field class="full">
+        <mat-label>Justification note (closing with open reserves)</mat-label>
+        <textarea matInput [formControl]="justificationNote" rows="3" required></textarea>
+      </mat-form-field>
+    }
+
+    @if (rejection().length > 0) {
+      <div class="blocked" role="alert">
+        <strong>The transition was rejected:</strong>
+        <ul>
+          @for (condition of rejection(); track $index) {
+            <li>{{ condition.message }}</li>
+          }
+        </ul>
+      </div>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">Cancel</button>
+  <button mat-flat-button type="button" [disabled]="!canConfirm()" (click)="confirm()">
+    Confirm {{ targetLabel }}
+  </button>
+</mat-dialog-actions>

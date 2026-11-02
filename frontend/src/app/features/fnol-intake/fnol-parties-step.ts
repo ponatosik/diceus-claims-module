@@ -1,26 +1,11 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { PartyType } from '../../api/models';
-import {
-  ASSET_TYPES,
-  PARTY_ROLES,
-  PARTY_TYPES,
-  partyDisplayName,
-  partyRoleLabel,
-} from '../../shared/domain/labels';
+import { ASSET_TYPES, partyDisplayName, partyRoleLabel } from '../../shared/domain/labels';
 import {
   PartyForm,
   RiskObjectForm,
@@ -29,6 +14,7 @@ import {
   createPartyForm,
   createRiskObjectForm,
 } from './fnol-form';
+import { PartyFormRow } from '../../shared/ui/party-form-row';
 import { FnolIntakeStore } from './fnol-intake.store';
 
 /** §11.2 Step 2 — Parties & Risk Objects: inline add rows, added items as cards with a remove button. */
@@ -36,6 +22,7 @@ import { FnolIntakeStore } from './fnol-intake.store';
   selector: 'app-fnol-parties-step',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PartyFormRow,
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -48,10 +35,7 @@ import { FnolIntakeStore } from './fnol-intake.store';
 })
 export class FnolPartiesStep {
   private readonly store = inject(FnolIntakeStore);
-  private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly partyRoles = PARTY_ROLES;
-  protected readonly partyTypes = PARTY_TYPES;
   protected readonly assetTypes = ASSET_TYPES;
   protected readonly roleLabel = partyRoleLabel;
   protected readonly partyName = partyDisplayName;
@@ -72,24 +56,15 @@ export class FnolPartiesStep {
   /** The open inline "Add …" rows, or null when closed. */
   protected readonly partyDraft = signal<PartyForm | null>(null);
   protected readonly riskObjectDraft = signal<RiskObjectForm | null>(null);
-  protected readonly draftPartyType = signal<PartyType>('Person');
 
   protected openPartyDraft(): void {
     const draft = createPartyForm();
     // Default the first party to Claimant (§11.2 needs one); later ones to Third party.
     draft.controls.partyRole.setValue(this.claimantMissing() ? 'Claimant' : 'ThirdParty');
-    draft.controls.partyType.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((type) => this.draftPartyType.set(type));
-    this.draftPartyType.set(draft.controls.partyType.value);
     this.partyDraft.set(draft);
   }
 
   protected addParty(draft: PartyForm): void {
-    if (draft.invalid) {
-      draft.markAllAsTouched();
-      return;
-    }
     addParty(this.store.form, draft.getRawValue());
     this.partyDraft.set(null);
   }

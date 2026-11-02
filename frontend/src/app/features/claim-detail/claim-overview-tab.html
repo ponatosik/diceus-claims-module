@@ -1,0 +1,63 @@
+@if (claim(); as claim) {
+  <div class="overview">
+    <section class="loss" aria-labelledby="loss-heading">
+      <h2 id="loss-heading">Loss event</h2>
+      <dl>
+        <dt>Loss date</dt>
+        <dd>{{ claim.lossEvent.lossDate | calendarDay }}</dd>
+        <dt>Cause of loss</dt>
+        <dd>{{ claim.causeOfLossName ?? claim.lossEvent.causeOfLossCode }}</dd>
+        <dt>Location</dt>
+        <dd>{{ claim.lossEvent.lossLocation ?? '—' }}</dd>
+        <dt>Description</dt>
+        <dd class="pre">{{ claim.lossEvent.lossDescription }}</dd>
+        <dt>Severity</dt>
+        <dd>
+          <span class="severity" [class.assessed]="claim.severity !== null" data-testid="severity">
+            {{ claim.severity ?? 'Not assessed' }}
+          </span>
+        </dd>
+        <dt>Estimated loss</dt>
+        <dd>
+          {{
+            claim.lossEvent.estimatedLossAmount === null
+              ? '—'
+              : (claim.lossEvent.estimatedLossAmount | currency)
+          }}
+        </dd>
+        <dt>Reported</dt>
+        <dd>{{ claim.reportedDate | date: 'medium' }}</dd>
+      </dl>
+    </section>
+
+    <section class="notes" aria-labelledby="notes-heading">
+      <h2 id="notes-heading">Claim notes</h2>
+      <mat-form-field class="full">
+        <mat-label>Notes</mat-label>
+        <textarea matInput [formControl]="notes" rows="10"></textarea>
+        <mat-hint align="end">{{ notesLength() }} / {{ maxNotes }}</mat-hint>
+        <mat-error>{{
+          notes.getError('server') ?? 'Notes can be at most ' + maxNotes + ' characters.'
+        }}</mat-error>
+      </mat-form-field>
+      <div class="actions">
+        <button
+          mat-button
+          type="button"
+          [disabled]="notes.pristine || saving.pending()"
+          (click)="discard()"
+        >
+          Discard
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="notes.pristine || notes.invalid || saving.pending()"
+          (click)="save()"
+        >
+          Save notes
+        </button>
+      </div>
+    </section>
+  </div>
+}

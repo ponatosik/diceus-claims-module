@@ -1,0 +1,74 @@
+<div class="toolbar">
+  <h2>Parties</h2>
+  @if (draft() === null) {
+    <button mat-stroked-button type="button" (click)="openDraft()">
+      <mat-icon>person_add</mat-icon>
+      Add Party
+    </button>
+  }
+</div>
+
+@if (draft(); as draft) {
+  <app-party-form-row
+    [form]="draft"
+    [busy]="saving.pending()"
+    (added)="add(draft)"
+    (cancelled)="this.draft.set(null)"
+  />
+}
+
+<table class="parties" aria-label="Parties">
+  <thead>
+    <tr>
+      <th scope="col">Role</th>
+      <th scope="col">Name</th>
+      <th scope="col">Email</th>
+      <th scope="col">Phone</th>
+      <th scope="col">Status</th>
+      <th scope="col"><span class="visually-hidden">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (party of parties(); track party.claimPartyId) {
+      <tr [class.inactive]="!party.isActive" [attr.data-testid]="'party-' + party.claimPartyId">
+        <td>
+          <span class="role-badge">{{ roleLabel(party.partyRole) }}</span>
+        </td>
+        <td class="name">
+          {{ partyName(party) }}
+          <span class="type">{{ party.partyType }}</span>
+        </td>
+        <td>{{ party.email ?? '—' }}</td>
+        <td>{{ party.phone ?? '—' }}</td>
+        <td>
+          <span class="status" [class.active]="party.isActive">{{
+            party.isActive ? 'Active' : 'Inactive'
+          }}</span>
+        </td>
+        <td class="actions">
+          @if (party.isActive) {
+            <span
+              [matTooltip]="
+                isLastActiveClaimant(party) ? 'The last active Claimant can’t be removed.' : ''
+              "
+            >
+              <button
+                mat-icon-button
+                type="button"
+                [disabled]="isLastActiveClaimant(party) || saving.pending()"
+                [attr.aria-label]="'Remove ' + partyName(party)"
+                (click)="remove(party)"
+              >
+                <mat-icon>person_remove</mat-icon>
+              </button>
+            </span>
+          }
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="6" class="empty">No parties.</td>
+      </tr>
+    }
+  </tbody>
+</table>

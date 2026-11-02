@@ -11,11 +11,19 @@ import {
   AssetType,
   CauseOfLossCode,
   CreateClaimRequest,
-  PartyRole,
-  PartyType,
   PolicySearchResult,
   ReserveComponentType,
 } from '../../api/models';
+import {
+  PartyForm,
+  PartyValue,
+  blankToNull,
+  createPartyForm,
+  toPartyRequest,
+} from '../../shared/forms/party-form';
+
+export type { PartyForm, PartyValue } from '../../shared/forms/party-form';
+export { createPartyForm } from '../../shared/forms/party-form';
 
 /**
  * The FNOL intake form (§11.2): one FormGroup of three step groups. Each step group's control names
@@ -88,16 +96,6 @@ export const MIN_DESCRIPTION = 20;
 
 // ---- parties & risk objects ------------------------------------------------------------------
 
-export interface PartyValue {
-  partyRole: PartyRole;
-  partyType: PartyType;
-  firstName: string;
-  lastName: string;
-  companyName: string;
-  email: string;
-  phone: string;
-}
-
 export interface RiskObjectValue {
   assetType: AssetType;
   assetDescription: string;
@@ -105,26 +103,7 @@ export interface RiskObjectValue {
   assetReference: string;
 }
 
-export type PartyForm = ReturnType<typeof createPartyForm>;
 export type RiskObjectForm = ReturnType<typeof createRiskObjectForm>;
-
-/** The inline "Add Party" row (§11.2 Step 2); also the shape of each added party. */
-export function createPartyForm(value?: PartyValue) {
-  const form = new FormGroup(
-    {
-      partyRole: new FormControl<PartyRole>('Claimant', { nonNullable: true }),
-      partyType: new FormControl<PartyType>('Person', { nonNullable: true }),
-      firstName: new FormControl('', { nonNullable: true }),
-      lastName: new FormControl('', { nonNullable: true }),
-      companyName: new FormControl('', { nonNullable: true }),
-      email: new FormControl('', { nonNullable: true, validators: Validators.email }),
-      phone: new FormControl('', { nonNullable: true }),
-    },
-    { validators: partyNameRule },
-  );
-  if (value !== undefined) form.setValue(value);
-  return form;
-}
 
 /** The inline "Add Risk Object" row (§11.2 Step 2). */
 export function createRiskObjectForm(value?: RiskObjectValue) {
@@ -161,18 +140,7 @@ export function toCreateClaimRequest(value: FnolFormValue): CreateClaimRequest {
         ? loss.causeOfLossCode.code
         : '',
     estimatedLossAmount: loss.estimatedLossAmount,
-    parties: parties.parties.map((party) => {
-      const isPerson = party.partyType === 'Person';
-      return {
-        partyRole: party.partyRole,
-        partyType: party.partyType,
-        firstName: isPerson ? blankToNull(party.firstName) : null,
-        lastName: isPerson ? blankToNull(party.lastName) : null,
-        companyName: isPerson ? null : blankToNull(party.companyName),
-        email: blankToNull(party.email),
-        phone: blankToNull(party.phone),
-      };
-    }),
+    parties: parties.parties.map(toPartyRequest),
     // §11.2 doesn't ask which risk object is primary; the first one listed is.
     riskObjects: parties.riskObjects.map((riskObject, index) => ({
       assetType: riskObject.assetType,
@@ -190,10 +158,6 @@ export function toCreateClaimRequest(value: FnolFormValue): CreateClaimRequest {
           }
         : null,
   };
-}
-
-function blankToNull(value: string): string | null {
-  return value.trim() === '' ? null : value.trim();
 }
 
 // ---- validators (mirroring CreateClaimCommandValidator / ReserveChangeRules) -----------------
@@ -261,15 +225,6 @@ function claimantRequired(array: AbstractControl): ValidationErrors | null {
   return parties.some((party) => party.partyRole === 'Claimant')
     ? null
     : { claimantRequired: true };
-}
-
-function partyNameRule(group: AbstractControl): ValidationErrors | null {
-  const party = group.value as PartyValue;
-  const missing =
-    party.partyType === 'Person'
-      ? party.firstName.trim() === '' || party.lastName.trim() === ''
-      : party.companyName.trim() === '';
-  return missing ? { nameRequired: true } : null;
 }
 
 /** BR-R-01 (ReserveChangeRules): positive, except SubrogationRecoverable which may be negative (never zero). */

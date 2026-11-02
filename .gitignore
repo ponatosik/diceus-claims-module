@@ -16,3 +16,7 @@ dist/
 # Local env / secrets
 *.env
 appsettings.*.local.json
+
+# Playwright
+test-results/
+playwright-report/

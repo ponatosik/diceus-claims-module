@@ -1,0 +1,6 @@
+**/bin/
+**/obj/
+**/uploads/
+tests/
+*.user
+*.DotSettings.user

@@ -1,0 +1,78 @@
+# Local full stack: SQL Server + API + Angular frontend (spec 007 story 12).
+#   docker compose up --build      → frontend at http://localhost:4200, API/Swagger at http://localhost:5218/swagger
+# Dev-only credentials below are not secrets (same values as appsettings.Development.json).
+
+x-sql-password: &sql-password "YourStrong!Passw0rd"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: *sql-password
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # Hangfire's separate store (ADR-0004) needs its database to exist before the API starts.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: *sql-password
+    entrypoint:
+      - /bin/sh
+      - -c
+      - /opt/mssql-tools18/bin/sqlcmd -C -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -b -Q "IF DB_ID('ClaimsModuleHangfire') IS NULL CREATE DATABASE ClaimsModuleHangfire;"
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrator
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__ClaimsDatabase: "Server=sqlserver,1433;Database=ClaimsModule;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+
+  api:
+    build:
+      context: ./backend
+      target: runtime
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ClaimsDatabase: "Server=sqlserver,1433;Database=ClaimsModule;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      ConnectionStrings__HangfireDatabase: "Server=sqlserver,1433;Database=ClaimsModuleHangfire;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      StorageProvider: LocalFileSystem
+      LocalStorage__RootPath: /app/uploads
+      DevAuth__Enabled: "true"
+    ports:
+      - "5218:8080"
+    volumes:
+      - document-uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+
+volumes:
+  sqlserver-data:
+  document-uploads:

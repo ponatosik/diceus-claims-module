@@ -9,14 +9,31 @@ monitoring, and document management, per `REQUIREMENTS.md`.
 
 | Area | Status |
 |---|---|
-| Backend (.NET 9, Clean Architecture, CQRS) | **Done.** All 5 implementation slices (specs `001`–`005`) shipped, reviewed, and tested. 243/243 tests passing. |
-| Frontend (Angular) | **Not started.** No `frontend/` directory exists yet — see `CLAUDE.md`. |
+| Backend (.NET 9, Clean Architecture, CQRS) | **Done.** Slices `001`–`006` shipped, reviewed, and tested (`006` = the gaps the frontend needs). 273/273 tests passing. |
+| Frontend (Angular 22) | **In progress.** Shell, demo auth, error handling, typed API layer and theme done (spec `007`); the three screens (specs `008`–`012`) are placeholders. |
+| Local full stack (`docker-compose.yml`) | **Done.** SQL Server + migrations + API + nginx-served frontend in one command. |
 | Azure deployment (§19) | **Not done.** Deliberately scoped out of the backend effort — see [`wayfinder/map.md`](wayfinder/map.md)'s "Out of scope" section. The app runs locally only; see "Azure deployment" below for what reproducing a deployment would require. |
 | CI/CD pipeline (§19/NFR-AZ-03) | **Not done.** No pipeline definition exists yet, for the same reason as Azure deployment. |
 
-This README documents the backend as it stands today. Claims about a deployed URL, a frontend
-walkthrough, or a CI/CD pipeline would be fabrications — none of those exist in this repository
-yet, and this document does not pretend otherwise.
+This README documents the system as it stands today. Claims about a deployed URL, a frontend
+feature walkthrough, or a CI/CD pipeline would be fabrications — none of those exist in this
+repository yet, and this document does not pretend otherwise.
+
+## Quick start (full stack in Docker)
+
+```bash
+docker compose up --build -d
+```
+
+- Frontend: <http://localhost:4200> — signed in as the handler demo user; switch user with "Act as"
+  in the top bar.
+- API / Swagger: <http://localhost:5218/swagger>
+
+Compose starts SQL Server, creates the Hangfire database, applies EF Core migrations with a
+one-shot migration bundle (the API never migrates itself on startup), then starts the API
+(`DevAuth:Enabled=true`, local-filesystem document storage) and the frontend behind nginx, which
+proxies `/api` and `/uploads` to the API so the browser sees one origin. `docker compose down -v`
+resets all data.
 
 ## Prerequisites
 
@@ -25,8 +42,9 @@ yet, and this document does not pretend otherwise.
   `ClaimsModule.ApiIntegrationTests` (Testcontainers spins up real SQL Server + Azurite
   containers), and to run SQL Server locally for `dotnet run`. `ClaimsModule.UnitTests` has no
   Docker dependency.
-- A SQL Server instance reachable at `localhost,1433` for local `dotnet run` (the quickest way to
-  get one is the `docker run` command below — there is no committed `docker-compose.yml` yet).
+- A SQL Server instance reachable at `localhost,1433` for local `dotnet run` (the `docker run`
+  command below, or `docker compose up -d sqlserver db-init migrate`).
+- [Node.js 22 LTS](https://nodejs.org/) (pinned in `frontend/.nvmrc`) for frontend development.
 
 ## Local development setup
 

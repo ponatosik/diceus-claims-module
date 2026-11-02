@@ -1,0 +1,70 @@
+// Angular Material 3 theme with a custom deep-teal primary palette (spec 007 story 9), generated
+// from seed colours by `ng generate @angular/material:theme-color` into _theme-colors.scss.
+@use '@angular/material' as mat;
+@use './theme-colors' as theme;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: theme.$primary-palette,
+        tertiary: theme.$tertiary-palette,
+        theme-type: light,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // §11.1's claim status colours — one token per status, consumed by the shared StatusBadge
+  // (see claimStatusToken()). Defined once here so the dashboard and detail header can never drift.
+  --status-draft: #757575;
+  --status-open: #1565c0;
+  --status-under-investigation: #ef6c00;
+  --status-pending-payment: #6a1b9a;
+  --status-closed: #2e7d32;
+  --status-reopened: #ffb300;
+  --status-withdrawn: #424242;
+
+  // Semantic colours shared by later slices (in-force badge, authority indicator, amounts).
+  --color-positive: #2e7d32;
+  --color-negative: #c62828;
+  --color-warning: #b26a00;
+}
+
+@media (prefers-contrast: more) {
+  html {
+    @include theme.high-contrast-overrides(light);
+  }
+}
+
+body {
+  color-scheme: light;
+  background-color: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+  // §11.4: usable at 1280px+ — the layout is desktop-first and never squeezes below this.
+  min-width: 1280px;
+}
+
+// Snackbar severities (NotificationService panelClass).
+.snackbar-success {
+  --mat-snack-bar-container-color: var(--color-positive);
+  --mat-snack-bar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #fff;
+}
+
+.snackbar-warning {
+  --mat-snack-bar-container-color: #fff3e0;
+  --mat-snack-bar-supporting-text-color: #5d4037;
+  --mat-snack-bar-button-color: #5d4037;
+}
+
+.snackbar-error {
+  --mat-snack-bar-container-color: var(--color-negative);
+  --mat-snack-bar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #fff;
+}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Backend slices A–E (`specs/001`–`005`) are implemented.** Frontend is planned but not yet scaffolded: `specs/006` (backend gaps the frontend needs — do this first) then `specs/007`–`012` (Angular slices G–L, in that order; 008/009/010 can run in parallel after 007, 011/012 after 010).
+**Backend slices A–F (`specs/001`–`006`) are implemented. Frontend slice G (`specs/007` — shell, demo auth, errors, API layer, docker-compose) is implemented**; `specs/008`–`012` (slices H–L) are next — 008/009/010 can run in parallel, 011/012 after 010.
 
 - `REQUIREMENTS.md` — the single source of truth. A consolidated, non-summarized requirements spec compiled from the two source PDFs (`Claims_Module_Candidate_Specification.pdf`, `DICEUS_Fullstack_Technical_Assessment.pdf`). Read this file, not the PDFs, for implementation detail — it reproduces every business rule, data entity, API contract, and constraint verbatim with traceability IDs (`BR-*`, `CC-*`, `FR-*`, `NFR-*`).
 - `wayfinder/map.md` — the backend implementation decision log (local-markdown issue tracker; see `wayfinder/TRACKER.md` for the convention). Resolves the architecture choices `REQUIREMENTS.md` deliberately leaves open. **Check this before making a call `REQUIREMENTS.md` doesn't pin down** — it's likely already decided here, with the full reasoning in `docs/adr/`.
@@ -37,8 +37,12 @@ Monorepo:
     ClaimsModule.UnitTests          xUnit, no I/O, no containers. Domain logic, FluentValidation validators, MediatR handlers with mocked repositories, plus a NetArchTest.Rules architecture-fitness suite (ArchitectureTests.cs) enforcing the dependency rules above at build time.
     ClaimsModule.PersistenceTests   xUnit + Testcontainers (SQL Server only). EF Core configurations/migrations/query filters — no HTTP, no MediatR. DatabaseFixture is an xUnit collection fixture (one container per assembly run, not per test); DatabaseFixture.ResetAsync() uses Respawn for inter-test isolation.
     ClaimsModule.ApiIntegrationTests   xUnit + Testcontainers (SQL Server with 2 DBs — main + a Hangfire-store stand-in per ADR-0004 — plus Azurite). ApiFixture extends WebApplicationFactory<Program> against real containers; full HTTP request/response cycles through the real MediatR pipeline. GL posting idempotency tests (once the feature exists) belong here, not a separate project, per ADR-0009.
-/frontend/           Angular workspace (not yet created — layout, conventions and tooling fixed in specs/007)
-docker-compose.yml   local dev: SQL Server + API + frontend (not yet created)
+/frontend/           Angular 22 workspace — standalone components, zoneless, signals; Vitest unit tests, Playwright e2e (e2e/)
+  src/app/core/        auth (MockAuthService, interceptor, permissions), errors (ApiError, error interceptor, snackbars), runtime config, shell, not-found
+  src/app/shared/      domain helpers (authorityTier, isInForce, claim status), forms (applyServerErrors), ui (StatusBadge, Skeleton, PendingTracker)
+  src/app/api/         typed DTO models + one service per resource — the only place HttpClient is used (§11.4)
+  src/app/features/    claims-list, fnol-intake, claim-detail — one lazy route bundle each (*.routes.ts)
+docker-compose.yml   SQL Server + db-init (Hangfire DB) + migrate (EF bundle) + API + nginx-served frontend
 ```
 
 Dependency direction is strict Clean Architecture: `API → Application → Domain`, with `Infrastructure`/`Persistence` implementing interfaces defined in `Application`/`Domain`. Nothing in `Domain` or `Application` may reference EF Core, Hangfire, or Azure SDK types directly — those live behind interfaces (`IAuditLogService`, `IStorageService`, repository interfaces) implemented in `Persistence`/`Infrastructure`. `ClaimsModule.UnitTests/ArchitectureTests.cs` enforces this automatically — a build failure there means a genuine layering violation, not a flaky test.
@@ -61,13 +65,17 @@ dotnet run --project src/ClaimsModule.API                      # Swagger UI at /
 dotnet ef migrations add <Name> -p src/ClaimsModule.Persistence -s src/ClaimsModule.API
 dotnet ef database update -p src/ClaimsModule.Persistence -s src/ClaimsModule.API
 
-# Frontend (Angular 18+) — not yet scaffolded
-cd frontend
+# Frontend (Angular 22, Node 22) — run from /frontend
 npm install
-ng serve
-ng build
-ng test
-ng lint
+npx ng serve                 # http://localhost:4200, proxies /api + /uploads to the API on :5218 (proxy.conf.json)
+npx ng build
+npx ng test --watch=false    # Vitest unit tests, no API needed
+npx ng lint
+npm run format:check
+npm run e2e                  # Playwright against the docker-compose stack (start it first: docker compose up --build -d)
+
+# Full stack — run from repo root
+docker compose up --build -d # frontend :4200, API :5218
 ```
 
 ## Architecture Notes (cross-cutting, non-obvious — read before implementing)

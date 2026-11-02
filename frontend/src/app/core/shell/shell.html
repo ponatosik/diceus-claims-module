@@ -1,0 +1,30 @@
+<mat-toolbar class="top-bar">
+  <a class="brand" routerLink="/claims">
+    <mat-icon>shield</mat-icon>
+    <span>Claims Module</span>
+  </a>
+  <span class="spacer"></span>
+
+  <div class="current-user" data-testid="current-user">
+    <span class="name">{{ auth.currentUser().displayName }}</span>
+    <span class="role">{{ auth.currentUser().role }}</span>
+  </div>
+
+  <mat-form-field class="role-switcher" subscriptSizing="dynamic" appearance="outline">
+    <mat-label>Act as</mat-label>
+    <mat-select
+      data-testid="role-switcher"
+      [value]="auth.currentUser().userId"
+      [disabled]="switching.pending()"
+      (selectionChange)="switchUser($event.value)"
+    >
+      @for (user of auth.demoUsers; track user.userId) {
+        <mat-option [value]="user.userId">{{ user.displayName }} ({{ user.role }})</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</mat-toolbar>
+
+<main class="content">
+  <router-outlet />
+</main>

@@ -9,7 +9,7 @@ import { NotificationService } from '../../core/errors/notification.service';
 import { applyServerErrors } from '../../shared/forms/apply-server-errors';
 import { confirm } from '../../shared/ui/confirm-dialog';
 import { PendingTracker } from '../../shared/ui/pending-tracker';
-import { createFnolForm, toCreateClaimRequest } from './fnol-form';
+import { createFnolForm, lossMoment, toCreateClaimRequest } from './fnol-form';
 import { ErrorsByStep, FNOL_STEPS, FnolStep, errorsByStep } from './fnol-issues';
 
 /**
@@ -31,6 +31,11 @@ export class FnolIntakeStore {
   /** Re-evaluated on every form event (value, status, touched) — what the derived signals read. */
   private readonly formEvents = toSignal(this.form.events);
   readonly value = computed(() => (this.formEvents(), this.form.getRawValue()));
+  /** The loss moment the claim will carry (picked date + optional time) — see lossMoment(). */
+  readonly lossMoment = computed(() => {
+    const { lossDate, lossTime } = this.value().loss;
+    return lossDate === null ? null : lossMoment(lossDate, lossTime);
+  });
   readonly stepValid = computed(() => {
     this.formEvents();
     const { loss, parties, reserve } = this.form.controls;

@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { RouterLink } from '@angular/router';
+import { clearServerErrors } from '../../shared/forms/apply-server-errors';
 import { FNOL_STEPS, FnolStep } from './fnol-issues';
 import { FnolIntakeStore } from './fnol-intake.store';
 import { FnolLossStep } from './fnol-loss-step';
@@ -47,6 +48,8 @@ export class FnolIntakePage {
 
   protected next(step: FnolStep): void {
     const group = this.store.form.controls[step];
+    // Old server errors must not block: the server re-checks below and re-applies any that still hold.
+    clearServerErrors(group);
     if (group.invalid) {
       group.markAllAsTouched();
       return;
@@ -59,6 +62,7 @@ export class FnolIntakePage {
   }
 
   protected create(): void {
+    clearServerErrors(this.store.form);
     const reserve = this.store.form.controls.reserve;
     if (reserve.enabled && reserve.invalid) {
       reserve.markAllAsTouched();

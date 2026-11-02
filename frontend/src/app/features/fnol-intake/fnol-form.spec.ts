@@ -57,10 +57,10 @@ describe('toCreateClaimRequest (review summary → API payload)', () => {
       new Date(2026, 9, 1, 14, 45).toISOString(),
     );
 
+    // No time: the picked day itself, as a UTC calendar day — the day the API checks in-force and
+    // filters against — so it can't slip to the previous day east of UTC.
     form.controls.loss.controls.lossTime.setValue(null);
-    expect(toCreateClaimRequest(form.getRawValue()).lossDate).toBe(
-      new Date(2026, 9, 1).toISOString(),
-    );
+    expect(toCreateClaimRequest(form.getRawValue()).lossDate).toBe('2026-10-01T00:00:00.000Z');
   });
 
   it('sends policyId null for Unknown Policy, even if a policy had been picked before the toggle', () => {

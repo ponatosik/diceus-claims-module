@@ -1,12 +1,34 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { AssetType, PartyRole, PartyType } from '../../api/models';
-import { PartyForm, RiskObjectForm, createPartyForm, createRiskObjectForm } from './fnol-form';
+import { PartyType } from '../../api/models';
+import {
+  ASSET_TYPES,
+  PARTY_ROLES,
+  PARTY_TYPES,
+  partyDisplayName,
+  partyRoleLabel,
+} from '../../shared/domain/labels';
+import {
+  PartyForm,
+  RiskObjectForm,
+  addParty,
+  addRiskObject,
+  createPartyForm,
+  createRiskObjectForm,
+} from './fnol-form';
 import { FnolIntakeStore } from './fnol-intake.store';
 
 /** §11.2 Step 2 — Parties & Risk Objects: inline add rows, added items as cards with a remove button. */
@@ -26,22 +48,13 @@ import { FnolIntakeStore } from './fnol-intake.store';
 })
 export class FnolPartiesStep {
   private readonly store = inject(FnolIntakeStore);
+  private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly partyRoles: PartyRole[] = [
-    'Claimant',
-    'Insured',
-    'ThirdParty',
-    'Witness',
-    'Attorney',
-  ];
-  protected readonly partyTypes: PartyType[] = ['Person', 'Company'];
-  protected readonly assetTypes: AssetType[] = [
-    'Vehicle',
-    'Property',
-    'Person',
-    'Equipment',
-    'Other',
-  ];
+  protected readonly partyRoles = PARTY_ROLES;
+  protected readonly partyTypes = PARTY_TYPES;
+  protected readonly assetTypes = ASSET_TYPES;
+  protected readonly roleLabel = partyRoleLabel;
+  protected readonly partyName = partyDisplayName;
 
   protected readonly partiesArray = this.store.form.controls.parties.controls.parties;
   protected readonly riskObjectsArray = this.store.form.controls.parties.controls.riskObjects;
@@ -65,7 +78,9 @@ export class FnolPartiesStep {
     const draft = createPartyForm();
     // Default the first party to Claimant (§11.2 needs one); later ones to Third party.
     draft.controls.partyRole.setValue(this.claimantMissing() ? 'Claimant' : 'ThirdParty');
-    draft.controls.partyType.valueChanges.subscribe((type) => this.draftPartyType.set(type));
+    draft.controls.partyType.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((type) => this.draftPartyType.set(type));
     this.draftPartyType.set(draft.controls.partyType.value);
     this.partyDraft.set(draft);
   }
@@ -75,7 +90,7 @@ export class FnolPartiesStep {
       draft.markAllAsTouched();
       return;
     }
-    this.partiesArray.push(createPartyForm(draft.getRawValue()));
+    addParty(this.store.form, draft.getRawValue());
     this.partyDraft.set(null);
   }
 
@@ -92,26 +107,11 @@ export class FnolPartiesStep {
       draft.markAllAsTouched();
       return;
     }
-    this.riskObjectsArray.push(createRiskObjectForm(draft.getRawValue()));
+    addRiskObject(this.store.form, draft.getRawValue());
     this.riskObjectDraft.set(null);
   }
 
   protected removeRiskObject(index: number): void {
     this.riskObjectsArray.removeAt(index);
-  }
-
-  protected roleLabel(role: PartyRole): string {
-    return role === 'ThirdParty' ? 'Third party' : role;
-  }
-
-  protected partyName(party: {
-    partyType: PartyType;
-    firstName: string;
-    lastName: string;
-    companyName: string;
-  }): string {
-    return party.partyType === 'Person'
-      ? `${party.firstName} ${party.lastName}`.trim()
-      : party.companyName;
   }
 }

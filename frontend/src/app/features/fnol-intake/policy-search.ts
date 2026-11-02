@@ -10,9 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, of, switchMap } from 'rxjs';
 import { PolicySearchResult } from '../../api/models';
 import { PoliciesApi } from '../../api/policies-api';
-import { IsoDayPipe } from '../../shared/ui/calendar-day.pipe';
+import { IsoDayPipe } from '../../shared/ui/iso-day.pipe';
 import { InForceBadge } from '../../shared/ui/in-force-badge';
-import { lossMoment } from './fnol-form';
 import { FnolIntakeStore } from './fnol-intake.store';
 
 const MIN_QUERY_LENGTH = 2;
@@ -58,14 +57,16 @@ const SEARCH_DEBOUNCE_MS = 300;
             </mat-option>
           }
         </mat-autocomplete>
-        @if (lossGroup.hasError('policyRequired') && lossGroup.controls.policy.touched) {
-          <mat-error>Select a policy, or tick Unknown Policy.</mat-error>
-        }
       </mat-form-field>
       <mat-checkbox [formControl]="lossGroup.controls.unknownPolicy"
         >I can't find the policy (Unknown Policy)</mat-checkbox
       >
     </div>
+    @if (lossGroup.hasError('policyRequired') && lossGroup.controls.policy.touched) {
+      <mat-error class="policy-required" role="alert"
+        >Select a policy, or tick Unknown Policy.</mat-error
+      >
+    }
 
     @if (policy(); as policy) {
       <div class="selected-policy" data-testid="selected-policy">
@@ -93,6 +94,9 @@ const SEARCH_DEBOUNCE_MS = 300;
       display: flex;
       align-items: center;
       gap: 24px;
+    }
+    .policy-required {
+      margin: -12px 0 16px;
     }
     .search-field {
       width: 420px;
@@ -125,10 +129,7 @@ export class PolicySearch {
   protected readonly policy = computed(() =>
     this.store.value().loss.unknownPolicy ? null : this.store.value().loss.policy,
   );
-  protected readonly lossDate = computed(() => {
-    const { lossDate, lossTime } = this.store.value().loss;
-    return lossDate === null ? null : lossMoment(lossDate, lossTime);
-  });
+  protected readonly lossDate = this.store.lossMoment;
 
   protected readonly results = toSignal(
     this.searchText.valueChanges.pipe(

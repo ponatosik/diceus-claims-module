@@ -41,6 +41,20 @@ A Material stepper (linear) over one reactive `FormGroup`, with client-side vali
 - **Component**: Step 1 blocks Next on a future loss date and on a <20-char description; Step 2 shows the claimant warning and blocks Next; authority indicator text at 10,000 / 10,000.01 / 100,000.01; warning-confirmation dialog appears when validate returns warnings.
 - **E2E**: full FNOL as handler with a policy and a $5,000 initial reserve → lands on Claim Detail, snackbar shows `CLM-YYYY-NNNNNNN`, reserve is auto-approved.
 
+## Delivery Notes
+
+- **In-force badge** follows §11.2 literally: green only for an **Active** policy whose effective
+  period covers the loss date; amber when the date is outside the period *or* the policy is not
+  Active ("Policy Expired"). GLOSSARY "In-force" and backend BR-C-02 check dates only — the badge is
+  stricter than the server warning on purpose, because §11.2 asks for it.
+- **Loss time** is a separate, optional field (two inputs can't share one control and stay in sync).
+  A loss with no time is sent as the picked day at 00:00 UTC, because the API reads a loss's day as
+  its UTC calendar day (BR-C-02, list filter) — local midnight would slip a day east of UTC.
+- Stale server errors never block: each Next / Create clears server-set errors and lets the server
+  re-check.
+- Small additions: the first risk object is sent as primary (§11.2 doesn't ask which); parties after
+  the first default to the Third party role.
+
 ## Out of Scope
 
 - Coverage evaluation (§2): coverages are displayed, not evaluated.

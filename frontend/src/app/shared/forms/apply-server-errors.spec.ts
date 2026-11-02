@@ -1,5 +1,5 @@
-import { FormArray, FormControl, FormGroup } from '@angular/forms';
-import { applyServerErrors } from './apply-server-errors';
+import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import { applyServerErrors, clearServerErrors } from './apply-server-errors';
 
 function fnolForm() {
   return new FormGroup({
@@ -58,5 +58,24 @@ describe('applyServerErrors', () => {
       server: 'At least one Claimant party is required to open a claim.',
     });
     expect(unmatched).toEqual(['Linked policy could not be found.']);
+  });
+});
+
+describe('clearServerErrors', () => {
+  it('drops server errors everywhere in the tree but keeps client validation errors', () => {
+    const form = fnolForm();
+    form.get('lossDate')!.addValidators(Validators.required);
+    applyServerErrors(form, {
+      LossDate: ['Bad.'],
+      'Parties[1].Email': ['Invalid.'],
+      Parties: ['Need a claimant.'],
+    });
+
+    clearServerErrors(form);
+
+    expect(form.get('lossDate')?.errors).toEqual({ required: true }); // client rule still applies
+    expect(form.get(['parties', 1, 'email'])?.errors).toBeNull();
+    expect(form.get('parties')?.errors).toBeNull();
+    expect(form.valid).toBe(false);
   });
 });

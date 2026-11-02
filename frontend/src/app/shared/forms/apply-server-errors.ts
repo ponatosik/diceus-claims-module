@@ -1,4 +1,4 @@
-import { AbstractControl } from '@angular/forms';
+import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 
 /**
  * Places a 422's field-keyed `errors` (ApiError.errors — FluentValidation PascalCase paths such as
@@ -40,4 +40,16 @@ function toControlPath(propertyPath: string): (string | number)[] {
 
 function camelCase(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/**
+ * Removes every server-set error in the tree by re-running the client validators (which replace a
+ * control's errors). Call before re-checking with the server, so a stale server error — whose cause
+ * the user may have fixed elsewhere — never blocks the re-check.
+ */
+export function clearServerErrors(control: AbstractControl): void {
+  if (control instanceof FormGroup || control instanceof FormArray) {
+    Object.values(control.controls).forEach((child: AbstractControl) => clearServerErrors(child));
+  }
+  control.updateValueAndValidity({ onlySelf: true });
 }

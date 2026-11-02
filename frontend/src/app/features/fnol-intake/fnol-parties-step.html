@@ -2,9 +2,9 @@
   <h3 id="parties-heading">Parties</h3>
 
   @if (claimantMissing()) {
-    <p class="warning" role="alert">At least one Claimant is required.</p>
+    <mat-error role="alert">At least one Claimant is required.</mat-error>
   } @else if (partiesServerError(); as message) {
-    <p class="warning" role="alert">{{ message }}</p>
+    <mat-error role="alert">{{ message }}</mat-error>
   }
 
   <div class="cards">
@@ -74,11 +74,11 @@
       </mat-form-field>
       <div class="draft-actions">
         @if (draft.hasError('nameRequired') && draft.touched) {
-          <span class="warning">{{
+          <mat-error>{{
             draftPartyType() === 'Person'
               ? 'First and last name are required.'
               : 'Company name is required.'
-          }}</span>
+          }}</mat-error>
         }
         <button mat-button type="button" (click)="partyDraft.set(null)">Cancel</button>
         <button mat-flat-button type="submit">Add</button>

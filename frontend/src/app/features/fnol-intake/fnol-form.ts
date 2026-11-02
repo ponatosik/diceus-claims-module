@@ -198,14 +198,21 @@ function blankToNull(value: string): string | null {
 
 // ---- validators (mirroring CreateClaimCommandValidator / ReserveChangeRules) -----------------
 
-/** The loss moment: the picked calendar day at the picked local time (midnight when none). */
+/**
+ * The loss moment: the picked calendar day at the picked local time. With no time, it is the picked
+ * day at 00:00 UTC — the API reads a loss's day as its UTC calendar day (in-force check BR-C-02, list
+ * date filter), so a date-only loss must not slip to the previous day for users east of UTC.
+ */
 export function lossMoment(date: Date, time: Date | null): Date {
+  if (time === null) {
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  }
   return new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate(),
-    time?.getHours() ?? 0,
-    time?.getMinutes() ?? 0,
+    time.getHours(),
+    time.getMinutes(),
   );
 }
 

@@ -166,4 +166,31 @@ describe('FnolIntakePage (§11.2 multi-step FNOL form)', () => {
     expect(success).toHaveBeenCalledWith(expect.stringContaining('CLM-2026-0000042'));
     expect(navigate).toHaveBeenCalledWith(['/claims', 'c-1']);
   });
+
+  it('tells the user to pick a policy (or tick Unknown Policy) when Next is clicked without one', async () => {
+    const { fixture } = await renderWizard();
+
+    await user().click(step('loss').getByRole('button', { name: 'Next' }));
+    await fixture.whenStable();
+
+    expect(step('loss').getByText('Select a policy, or tick Unknown Policy.')).toBeTruthy();
+  });
+
+  it('re-asks the server instead of being blocked by a stale server error', async () => {
+    const { validate, fixture } = await renderWizard([
+      [{ propertyName: 'LossDescription', message: 'Server says no.', severity: 'Error' }],
+      [],
+    ]);
+    await fillLossStep();
+    await user().click(step('loss').getByRole('button', { name: 'Next' }));
+    await fixture.whenStable();
+    expect(selectedStep()).toMatch(/Policy & Loss/);
+
+    // Nothing edited — the server error is still on the control, but the server now accepts it.
+    await user().click(step('loss').getByRole('button', { name: 'Next' }));
+    await fixture.whenStable();
+
+    expect(validate).toHaveBeenCalledTimes(2);
+    expect(selectedStep()).toMatch(/Parties/);
+  });
 });

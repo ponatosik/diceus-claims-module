@@ -77,7 +77,7 @@ public class ApproveReserveCommandHandler(
 
         await auditLogService.LogAsync(
             new AuditLogEntry(
-                claim.ClaimId, "RESERVE_APPROVED", $"Reserve approved: {component.Component} ({AuditMoney.Format(history.Amount)}).",
+                claim.ClaimId, "RESERVE_APPROVED", $"Reserve approved: {component.Component} ({UsdAmount.Format(history.Amount)}).",
                 null, null, history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 

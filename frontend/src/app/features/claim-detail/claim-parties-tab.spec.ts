@@ -20,13 +20,14 @@ const party = (overrides: Partial<ClaimParty>): ClaimParty => ({
   ...overrides,
 });
 
-async function renderTab(parties: ClaimParty[]) {
+async function renderTab(parties: ClaimParty[], highlight?: string) {
   const store = {
     claim: signal({ claimId: 'c-1', parties } as unknown as ClaimDetail),
     addParty: vi.fn(() => of(undefined)),
     removeParty: vi.fn(() => of(undefined)),
   };
   await render(ClaimPartiesTab, {
+    inputs: { highlight },
     providers: [
       { provide: ClaimDetailStore, useValue: store },
       {
@@ -104,5 +105,18 @@ describe('ClaimPartiesTab (§11.3 Tab 2)', () => {
         companyName: null,
       }),
     );
+  });
+
+  it('highlights the party an audit-log link points at', async () => {
+    await renderTab(
+      [
+        party({ claimPartyId: 'a', firstName: 'Jane' }),
+        party({ claimPartyId: 'b', firstName: 'Will', isActive: false }),
+      ],
+      'b',
+    );
+
+    expect(row('Will Doe').classList).toContain('highlighted');
+    expect(row('Jane Doe').classList).not.toContain('highlighted');
   });
 });

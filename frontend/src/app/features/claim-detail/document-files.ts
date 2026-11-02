@@ -49,6 +49,7 @@ export const DOCUMENT_TYPES = [
   'Photo',
   'Other',
 ] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** `PoliceReport` → `Police report`; free-text types from elsewhere are shown the same way. */
 export function documentTypeLabel(documentType: string): string {

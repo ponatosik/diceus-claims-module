@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { render, screen, waitFor, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { ClaimDocument } from '../../api/models';
 import { NotificationService } from '../../core/errors/notification.service';
 import { ClaimDocumentsTab } from './claim-documents-tab';
@@ -93,6 +93,32 @@ describe('ClaimDocumentsTab (§11.3 Tab 4)', () => {
     expect(open).toHaveBeenCalledWith('', '_blank'); // opened synchronously in the click, so it isn't popup-blocked
     expect(store.freshDownloadUrl).toHaveBeenCalledWith('d1');
     expect(tab.location.href).toBe('https://api.example/uploads/fresh.pdf');
+    open.mockRestore();
+  });
+
+  it('tells the user when pop-ups are blocked instead of navigating away from the claim', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { store, notifications } = await renderTab();
+
+    await userEvent.click(screen.getByRole('button', { name: /Download police-report\.pdf/ }));
+
+    expect(store.freshDownloadUrl).not.toHaveBeenCalled();
+    expect(notifications.warning).toHaveBeenCalledWith(expect.stringMatching(/pop-ups/i));
+    open.mockRestore();
+  });
+
+  it('says so when the document can no longer be downloaded, and closes the blank tab', async () => {
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    const { store, notifications } = await renderTab();
+    store.freshDownloadUrl.mockReturnValue(
+      throwError(() => new Error('The document is no longer on this claim.')),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Download police-report\.pdf/ }));
+
+    expect(tab.close).toHaveBeenCalled();
+    expect(notifications.warning).toHaveBeenCalledWith('The document is no longer on this claim.');
     open.mockRestore();
   });
 });

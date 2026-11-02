@@ -1,4 +1,5 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { latestValue } from '../../shared/state/latest-value';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, filter, finalize, map, tap } from 'rxjs';
 import { DocumentsApi } from '../../api/documents-api';
@@ -22,13 +23,7 @@ export class DocumentsStore {
     stream: ({ params }) => this.documentsApi.list(params.claimId),
   });
 
-  private readonly latestDocuments = linkedSignal<
-    ClaimDocument[] | undefined,
-    ClaimDocument[] | undefined
-  >({
-    source: () => (this.resource.hasValue() ? this.resource.value() : undefined),
-    computation: (documents, previous) => documents ?? previous?.value,
-  });
+  private readonly latestDocuments = latestValue(this.resource);
 
   readonly documents = computed(() => this.latestDocuments() ?? []);
   readonly loaded = computed(() => this.latestDocuments() !== undefined);

@@ -10,6 +10,8 @@ public class ClaimRepository(ClaimsDbContext dbContext, IUnitOfWork unitOfWork) 
 {
     public void Add(Claim claim) => dbContext.Claims.Add(claim);
 
+    public void AddParty(ClaimParty party) => dbContext.ClaimParties.Add(party);
+
     public async Task CommitChangesAsync(CancellationToken cancellationToken = default) =>
         await unitOfWork.CommitChangesAsync(cancellationToken);
 

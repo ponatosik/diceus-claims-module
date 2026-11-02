@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,6 +24,9 @@ import { ClaimDetailStore } from './claim-detail.store';
   styleUrl: './claim-parties-tab.scss',
 })
 export class ClaimPartiesTab {
+  /** `?highlight=<claimPartyId>` from an audit-log link. */
+  readonly highlight = input<string | undefined>(undefined);
+
   private readonly store = inject(ClaimDetailStore);
   private readonly notifications = inject(NotificationService);
   private readonly dialog = inject(MatDialog);

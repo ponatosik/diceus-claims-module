@@ -7,12 +7,6 @@ import { AuditLogEntry } from '../../api/models';
 import { AUDIT_PAGE_SIZES, AuditStore } from './audit.store';
 import { auditEntityLink, auditEventFamily } from './audit-links';
 
-const LINK_TEXT = {
-  reserves: 'View reserve',
-  parties: 'View party',
-  documents: 'View document',
-} as const;
-
 /**
  * §11.3 Tab 5 — Audit Log: the append-only event list, newest first, paginated. Read-only by design:
  * there is no edit or delete affordance anywhere (AUD rules).
@@ -34,9 +28,6 @@ export class ClaimAuditTab {
     const link = auditEntityLink(entry);
     return link === null
       ? null
-      : {
-          queryParams: { tab: link.tab, highlight: link.highlight },
-          text: LINK_TEXT[link.tab as keyof typeof LINK_TEXT],
-        };
+      : { queryParams: { tab: link.tab, highlight: link.highlight }, text: link.text };
   }
 }

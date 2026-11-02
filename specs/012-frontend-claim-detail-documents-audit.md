@@ -45,7 +45,17 @@ A Documents tab over `GET/POST /api/claims/{id}/documents` with progress-reporti
 - Arriving via an audit link (`?tab=…&highlight=…`) used to lose the highlight, because the tab group
   reports programmatic switches too; the page now only rewrites the URL for a user's own tab change.
 - Found while building this slice: audit descriptions rendered money as `¤9,000.00` on a
-  culture-invariant host — fixed in the backend (`AuditMoney.Format`, always en-US).
+  culture-invariant host — fixed in the backend (`UsdAmount.Format`, a fixed `$` format that needs no
+  ICU culture data).
+- `PARTY_ADDED` now references the added party (it had no related entity), and the Parties tab takes
+  `highlight`, so "View party" lands on the party — added or removed (removed parties stay listed as
+  Inactive).
+- Badge families follow this spec: claim / status / reserve / document / party / system (GL postings,
+  SLA breaches and anything unrecognised are "system").
+- A blocked pop-up is reported ("Allow pop-ups…") rather than navigating the app away; a document that
+  has vanished between listing and download is reported too.
+- Not done: the entity-type → tab mapping is used by the Audit tab only; the Reserves, Parties and
+  Documents tabs each match `highlight` against their own row ids, which needs no shared helper.
 
 ## Out of Scope
 

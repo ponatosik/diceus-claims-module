@@ -1,9 +1,9 @@
-import { Injectable, computed, inject, linkedSignal } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
+import { latestValue } from '../../shared/state/latest-value';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { ClaimsApi } from '../../api/claims-api';
-import { ClaimSummary, PagedResult } from '../../api/models';
 import { ReloadRequests } from '../../core/errors/reload-requests';
 import {
   ClaimsListFilters,
@@ -39,13 +39,7 @@ export class ClaimsListStore {
   });
 
   /** The latest loaded page — kept on screen while the next one loads, so the table doesn't flash. */
-  private readonly lastPage = linkedSignal<
-    PagedResult<ClaimSummary> | undefined,
-    PagedResult<ClaimSummary> | undefined
-  >({
-    source: () => (this.results.hasValue() ? this.results.value() : undefined),
-    computation: (page, previous) => page ?? previous?.value,
-  });
+  private readonly lastPage = latestValue(this.results);
 
   readonly claims = computed(() => this.lastPage()?.items ?? []);
   readonly totalCount = computed(() => this.lastPage()?.totalCount ?? 0);

@@ -5,14 +5,14 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { DOCUMENT_TYPES, documentTypeLabel, formatFileSize } from './document-files';
+import { DOCUMENT_TYPES, DocumentType, documentTypeLabel, formatFileSize } from './document-files';
 
 export interface UploadDocumentDialogData {
   file: File;
 }
 
 export interface UploadDocumentChoice {
-  documentType: string;
+  documentType: DocumentType;
   notes: string | null;
 }
 
@@ -72,13 +72,16 @@ export class UploadDocumentDialog {
   protected readonly typeLabel = documentTypeLabel;
   protected readonly size = formatFileSize(this.data.file.size);
   protected readonly form = new FormGroup({
-    documentType: new FormControl('', { nonNullable: true, validators: Validators.required }),
+    documentType: new FormControl<DocumentType | null>(null, Validators.required),
     notes: new FormControl('', { nonNullable: true, validators: Validators.maxLength(500) }),
   });
 
   protected upload(): void {
     if (this.form.invalid) return;
     const { documentType, notes } = this.form.getRawValue();
-    this.dialogRef.close({ documentType, notes: notes.trim() === '' ? null : notes.trim() });
+    this.dialogRef.close({
+      documentType: documentType!,
+      notes: notes.trim() === '' ? null : notes.trim(),
+    });
   }
 }

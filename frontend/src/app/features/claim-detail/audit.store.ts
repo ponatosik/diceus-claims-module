@@ -1,7 +1,7 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { latestValue } from '../../shared/state/latest-value';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ClaimsApi } from '../../api/claims-api';
-import { AuditLogEntry, PagedResult } from '../../api/models';
 import { ClaimDetailStore } from './claim-detail.store';
 
 export const AUDIT_PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -31,13 +31,7 @@ export class AuditStore {
     stream: ({ params }) => this.claimsApi.audit(params.claimId, params.page, params.pageSize),
   });
 
-  private readonly latestPage = linkedSignal<
-    PagedResult<AuditLogEntry> | undefined,
-    PagedResult<AuditLogEntry> | undefined
-  >({
-    source: () => (this.resource.hasValue() ? this.resource.value() : undefined),
-    computation: (page, previous) => page ?? previous?.value,
-  });
+  private readonly latestPage = latestValue(this.resource);
 
   readonly entries = computed(() => this.latestPage()?.items ?? []);
   readonly totalCount = computed(() => this.latestPage()?.totalCount ?? 0);

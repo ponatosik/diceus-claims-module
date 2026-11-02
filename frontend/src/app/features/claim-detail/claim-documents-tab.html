@@ -20,15 +20,10 @@
   </button>
 </div>
 
-@if (store.uploadPercent(); as percent) {
+@if (store.uploadPercent() !== null) {
   <div class="upload-progress" role="status">
-    <mat-progress-bar mode="determinate" [value]="percent" />
-    <span>Uploading… {{ percent }}%</span>
-  </div>
-} @else if (store.uploadPercent() === 0) {
-  <div class="upload-progress" role="status">
-    <mat-progress-bar mode="indeterminate" />
-    <span>Uploading…</span>
+    <mat-progress-bar mode="determinate" [value]="store.uploadPercent()" />
+    <span>Uploading… {{ store.uploadPercent() }}%</span>
   </div>
 }
 

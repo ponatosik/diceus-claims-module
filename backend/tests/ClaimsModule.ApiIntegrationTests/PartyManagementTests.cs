@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ClaimsModule.API.Middleware;
+using ClaimsModule.Application.Claims;
 using ClaimsModule.Application.Claims.AddClaimParty;
 using ClaimsModule.Application.Claims.CreateClaim;
 using ClaimsModule.Application.Claims.Dtos;
@@ -69,6 +70,26 @@ public class PartyManagementTests(ApiFixture fixture) : ApiTestBase(fixture)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.Equal("BR-P-01", body!.BlockingConditions![0].Code);
+    }
+
+    [Fact]
+    public async Task Adding_a_party_audits_PARTY_ADDED_linked_to_the_new_party()
+    {
+        using var client = Fixture.CreateAuthenticatedClient("handler");
+        var claim = await CreateClaimAsync(client);
+
+        var added = (await (await client.PostAsJsonAsync($"/api/claims/{claim.ClaimId}/parties", new AddClaimPartyCommand
+        {
+            PartyRole = PartyRole.Witness,
+            PartyType = PartyType.Person,
+            FirstName = "Sam",
+            LastName = "Lee",
+        })).Content.ReadFromJsonAsync<ClaimPartyDto>())!;
+
+        var audit = (await client.GetFromJsonAsync<PagedResult<AuditLogEntryDto>>($"/api/claims/{claim.ClaimId}/audit"))!;
+        var entry = Assert.Single(audit.Items, e => e.EventType == "PARTY_ADDED");
+        Assert.Equal("ClaimParty", entry.RelatedEntityType);
+        Assert.Equal(added.ClaimPartyId, entry.RelatedEntityId);
     }
 
     [Fact]

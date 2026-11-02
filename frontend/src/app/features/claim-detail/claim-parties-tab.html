@@ -30,7 +30,11 @@
   </thead>
   <tbody>
     @for (party of parties(); track party.claimPartyId) {
-      <tr [class.inactive]="!party.isActive" [attr.data-testid]="'party-' + party.claimPartyId">
+      <tr
+        [class.inactive]="!party.isActive"
+        [class.highlighted]="party.claimPartyId === highlight()"
+        [attr.data-testid]="'party-' + party.claimPartyId"
+      >
         <td>
           <span class="role-badge">{{ roleLabel(party.partyRole) }}</span>
         </td>

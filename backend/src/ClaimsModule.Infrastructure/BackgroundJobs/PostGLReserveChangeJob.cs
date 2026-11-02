@@ -1,4 +1,3 @@
-using System.Globalization;
 using ClaimsModule.Application;
 using ClaimsModule.Application.Common;
 using ClaimsModule.Domain.Entities;
@@ -33,12 +32,9 @@ public class PostGLReserveChangeJob(
         history.PostingStatus = ReservePostingStatus.Posted;
         history.PostingJobId = postingJobId;
 
-        // Pinned to en-US, not the host's current culture — a Hangfire worker runs under whatever
-        // culture was ambient when the job was enqueued (its CaptureCultureAttribute default), which
-        // must never leak into a permanent audit record's formatting. InvariantCulture's own "C"
-        // format has no actual currency symbol (renders "¤"), so en-US is pinned explicitly instead.
+        // UsdAmount: always dollars, never the Hangfire worker's ambient culture (a permanent audit record).
         var journalDetail =
-            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {AuditMoney.Format(history.Amount)}.";
+            $"DR Change in Outstanding Reserves / CR Outstanding Loss Reserves, Amount = {UsdAmount.Format(history.Amount)}.";
 
         using var activity = BackgroundJobActivitySource.Source.StartActivity(nameof(PostGLReserveChangeJob));
         await auditLogService.LogAsync(new AuditLogEntry(

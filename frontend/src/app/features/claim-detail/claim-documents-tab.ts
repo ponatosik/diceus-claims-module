@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { filter, switchMap } from 'rxjs';
 import { ClaimDocument } from '../../api/models';
+import { isApiError } from '../../core/errors/api-error';
 import { NotificationService } from '../../core/errors/notification.service';
 import {
   DOCUMENT_ACCEPT,
@@ -77,16 +78,18 @@ export class ClaimDocumentsTab {
    */
   protected download(document: ClaimDocument): void {
     const tab = window.open('', '_blank');
-    if (tab !== null) tab.opener = null;
+    if (tab === null) {
+      this.notifications.warning('Allow pop-ups for this site to download documents.');
+      return;
+    }
+    tab.opener = null;
     this.store.freshDownloadUrl(document.claimDocumentId).subscribe({
-      next: (url) => {
-        if (tab === null) {
-          window.location.assign(url);
-        } else {
-          tab.location.href = url;
-        }
+      next: (url) => (tab.location.href = url),
+      error: (error: unknown) => {
+        tab.close();
+        // API failures are already announced by the error interceptor; this is "no longer on the claim".
+        if (!isApiError(error) && error instanceof Error) this.notifications.warning(error.message);
       },
-      error: () => tab?.close(),
     });
   }
 }

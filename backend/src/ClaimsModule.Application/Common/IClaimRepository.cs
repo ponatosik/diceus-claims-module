@@ -20,6 +20,12 @@ public record ClaimListFilter(
 public interface IClaimRepository
 {
     void Add(Claim claim);
+
+    /// <summary>
+    /// Adds a new party to an existing claim. Explicit, not via <c>claim.Parties.Add</c>: a party carrying
+    /// a client-assigned id would otherwise be taken for an existing row by change tracking.
+    /// </summary>
+    void AddParty(ClaimParty party);
     Task CommitChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Tracked (reused by both read queries and mutating commands), with LossEvent/Parties/RiskObjects included.</summary>

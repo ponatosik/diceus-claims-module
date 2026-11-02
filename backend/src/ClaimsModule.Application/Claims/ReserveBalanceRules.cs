@@ -45,14 +45,14 @@ public static class ReserveBalanceRules
         {
             return [new BlockingCondition(
                 ReversalMustCancelBalance,
-                $"A reversal must exactly cancel the {component} reserve's current balance of {AuditMoney.Format(currentBalance)}.")];
+                $"A reversal must exactly cancel the {component} reserve's current balance of {UsdAmount.Format(currentBalance)}.")];
         }
 
         if (!mayGoNegative && currentBalance + amount < 0)
         {
             return [new BlockingCondition(
                 BalanceMayNotGoNegative,
-                $"The {component} reserve may not go below zero (current balance {AuditMoney.Format(currentBalance)}).")];
+                $"The {component} reserve may not go below zero (current balance {UsdAmount.Format(currentBalance)}).")];
         }
 
         return [];

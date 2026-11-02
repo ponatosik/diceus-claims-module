@@ -31,6 +31,10 @@ app-party-form-row {
     font: var(--mat-sys-label-large);
   }
 
+  .highlighted td {
+    background: var(--mat-sys-secondary-container);
+  }
+
   .inactive td {
     color: var(--mat-sys-on-surface-variant);
   }

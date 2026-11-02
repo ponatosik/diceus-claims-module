@@ -16,7 +16,7 @@
           ><div class="tab-body"><app-claim-overview-tab /></div
         ></mat-tab>
         <mat-tab label="Parties"
-          ><div class="tab-body"><app-claim-parties-tab /></div
+          ><div class="tab-body"><app-claim-parties-tab [highlight]="highlight()" /></div
         ></mat-tab>
         <mat-tab label="Reserves">
           <!-- Lazy: reserves load (and polling starts) only once the tab is opened. -->

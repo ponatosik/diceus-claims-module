@@ -93,7 +93,7 @@ public class ReserveTransactionRecorder(
 
         await auditLogService.LogAsync(
             new AuditLogEntry(
-                claim.ClaimId, "RESERVE_CREATED", $"Reserve transaction submitted for {componentType} ({AuditMoney.Format(amount)}).",
+                claim.ClaimId, "RESERVE_CREATED", $"Reserve transaction submitted for {componentType} ({UsdAmount.Format(amount)}).",
                 null, null, history.ReserveHistoryId, "ReserveHistory"),
             cancellationToken);
 
@@ -101,7 +101,7 @@ public class ReserveTransactionRecorder(
         {
             await auditLogService.LogAsync(
                 new AuditLogEntry(
-                    claim.ClaimId, "RESERVE_AUTO_APPROVED", $"Reserve auto-approved: {componentType} ({AuditMoney.Format(amount)}).",
+                    claim.ClaimId, "RESERVE_AUTO_APPROVED", $"Reserve auto-approved: {componentType} ({UsdAmount.Format(amount)}).",
                     null, null, history.ReserveHistoryId, "ReserveHistory"),
                 cancellationToken);
         }

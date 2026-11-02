@@ -1,7 +1,8 @@
-import { Injectable, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { latestValue } from '../../shared/state/latest-value';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, map, tap } from 'rxjs';
-import { OpenReserveRequest, ReserveList } from '../../api/models';
+import { OpenReserveRequest } from '../../api/models';
 import { ReservesApi } from '../../api/reserves-api';
 import { ClaimDetailStore } from './claim-detail.store';
 import { hasPostingsInFlight } from './reserve-rules';
@@ -30,10 +31,7 @@ export class ReservesStore {
   });
 
   /** The latest loaded list — kept on screen during re-fetches and polls. */
-  private readonly latest = linkedSignal<ReserveList | undefined, ReserveList | undefined>({
-    source: () => (this.resource.hasValue() ? this.resource.value() : undefined),
-    computation: (list, previous) => list ?? previous?.value,
-  });
+  private readonly latest = latestValue(this.resource);
 
   readonly components = computed(() => this.latest()?.components ?? []);
   readonly history = computed(() => this.latest()?.history ?? []);

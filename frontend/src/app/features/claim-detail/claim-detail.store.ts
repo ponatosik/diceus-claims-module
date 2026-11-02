@@ -1,18 +1,10 @@
-import {
-  Injectable,
-  computed,
-  effect,
-  inject,
-  linkedSignal,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { latestValue } from '../../shared/state/latest-value';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
 import { ClaimsApi } from '../../api/claims-api';
 import {
-  ClaimDetail,
   ClaimStatus,
   CreatePartyRequest,
   TransitionPreflight,
@@ -51,10 +43,7 @@ export class ClaimDetailStore {
   });
 
   /** The latest loaded claim — kept on screen while a re-fetch is in flight. */
-  readonly claim = linkedSignal<ClaimDetail | undefined, ClaimDetail | undefined>({
-    source: () => (this.claimResource.hasValue() ? this.claimResource.value() : undefined),
-    computation: (claim, previous) => claim ?? previous?.value,
-  });
+  readonly claim = latestValue(this.claimResource);
   readonly loading = this.claimResource.isLoading;
   readonly loadFailed = computed(() => this.claimResource.status() === 'error');
 

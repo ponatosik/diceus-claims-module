@@ -136,4 +136,15 @@ describe('ClaimsListPage', () => {
       '/claims/new',
     );
   });
+
+  it('keeps what the user is typing — a trailing space survives the debounced URL round-trip', async () => {
+    const { fixture } = await renderPage([claim()]);
+    const search = screen.getByLabelText('Search claim number or client') as HTMLInputElement;
+
+    await userEvent.type(search, 'Meridian ');
+    await new Promise((resolve) => setTimeout(resolve, 400)); // past the 300ms debounce → URL updated
+    await fixture.whenStable();
+
+    expect(search.value).toBe('Meridian ');
+  });
 });

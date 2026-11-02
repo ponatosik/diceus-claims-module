@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -17,9 +17,16 @@ import { debounceTime } from 'rxjs';
 import { ReferenceApi } from '../../api/reference-api';
 import { CLAIM_STATUSES, ClaimStatus, claimStatusLabel } from '../../shared/domain/claim-status';
 import { fromIsoDate, toIsoDate } from '../../shared/domain/iso-date';
+import { CalendarDayPipe } from '../../shared/ui/calendar-day.pipe';
 import { Skeleton } from '../../shared/ui/skeleton';
 import { StatusBadge } from '../../shared/ui/status-badge';
-import { ClaimsListFilters, ClaimsListState, PAGE_SIZE_OPTIONS } from './claims-list-query';
+import {
+  ClaimsListFilters,
+  ClaimsListState,
+  PAGE_SIZE_OPTIONS,
+  sameFilters,
+  textOrNull,
+} from './claims-list-query';
 import { ClaimsListStore } from './claims-list.store';
 
 const FILTER_DEBOUNCE_MS = 300;
@@ -29,8 +36,8 @@ const FILTER_DEBOUNCE_MS = 300;
   selector: 'app-claims-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CalendarDayPipe,
     CurrencyPipe,
-    DatePipe,
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
@@ -81,8 +88,15 @@ export class ClaimsListPage {
   });
 
   constructor() {
-    // URL → form: keeps the filter bar in step with Back/Forward and bookmarked URLs.
-    effect(() => this.filters.setValue(toFormValue(this.store.state()), { emitEvent: false }));
+    // URL → form: keeps the filter bar in step with Back/Forward and bookmarked URLs. Skipped when
+    // the form already means the same filters, so it never rewrites what the user is typing
+    // (e.g. the trailing space in "Meridian " that the URL stores trimmed).
+    effect(() => {
+      const state = this.store.state();
+      if (!sameFilters(toFilters(this.filters.getRawValue()), state)) {
+        this.filters.setValue(toFormValue(state), { emitEvent: false });
+      }
+    });
 
     // Form → URL, debounced so typing doesn't navigate on every keystroke (spec 008 story 5).
     this.filters.valueChanges
@@ -110,19 +124,12 @@ function toFormValue(state: ClaimsListState): FilterFormValue {
 }
 
 function toFilters(value: FilterFormValue): ClaimsListFilters {
-  const text = (s: string) => (s.trim() === '' ? null : s.trim());
   return {
     statuses: value.statuses,
     dateFrom: value.dateFrom === null ? null : toIsoDate(value.dateFrom),
     dateTo: value.dateTo === null ? null : toIsoDate(value.dateTo),
-    assignedHandler: text(value.assignedHandler),
-    causeOfLossCode: text(value.causeOfLossCode),
-    search: text(value.search),
+    assignedHandler: textOrNull(value.assignedHandler),
+    causeOfLossCode: textOrNull(value.causeOfLossCode),
+    search: textOrNull(value.search),
   };
-}
-
-function sameFilters(filters: ClaimsListFilters, state: ClaimsListState): boolean {
-  return (Object.keys(filters) as (keyof ClaimsListFilters)[]).every(
-    (key) => JSON.stringify(filters[key]) === JSON.stringify(state[key]),
-  );
 }

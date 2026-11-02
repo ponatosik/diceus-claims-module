@@ -35,8 +35,8 @@ export const DEFAULT_LIST_STATE: ClaimsListState = {
 
 export type ClaimsListFilters = Omit<ClaimsListState, 'page' | 'pageSize'>;
 
-/** Short URL keys — what a user sees in the address bar and bookmarks. */
-const KEYS = {
+/** Query-param names — what a user sees in the address bar and bookmarks. */
+const QUERY_PARAM_KEYS = {
   status: 'status',
   dateFrom: 'dateFrom',
   dateTo: 'dateTo',
@@ -48,15 +48,15 @@ const KEYS = {
 } as const;
 
 export function fromQueryParams(params: ParamMap): ClaimsListState {
-  const pageSize = Number(params.get(KEYS.pageSize));
-  const page = Number(params.get(KEYS.page));
+  const pageSize = Number(params.get(QUERY_PARAM_KEYS.pageSize));
+  const page = Number(params.get(QUERY_PARAM_KEYS.page));
   return {
-    statuses: params.getAll(KEYS.status).filter(isClaimStatus),
-    dateFrom: isoDateOrNull(params.get(KEYS.dateFrom)),
-    dateTo: isoDateOrNull(params.get(KEYS.dateTo)),
-    assignedHandler: textOrNull(params.get(KEYS.handler)),
-    causeOfLossCode: textOrNull(params.get(KEYS.cause)),
-    search: textOrNull(params.get(KEYS.search)),
+    statuses: params.getAll(QUERY_PARAM_KEYS.status).filter(isClaimStatus),
+    dateFrom: isoDateOrNull(params.get(QUERY_PARAM_KEYS.dateFrom)),
+    dateTo: isoDateOrNull(params.get(QUERY_PARAM_KEYS.dateTo)),
+    assignedHandler: textOrNull(params.get(QUERY_PARAM_KEYS.handler)),
+    causeOfLossCode: textOrNull(params.get(QUERY_PARAM_KEYS.cause)),
+    search: textOrNull(params.get(QUERY_PARAM_KEYS.search)),
     page: Number.isInteger(page) && page >= 1 ? page : DEFAULT_LIST_STATE.page,
     pageSize: (PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
       ? pageSize
@@ -67,26 +67,36 @@ export function fromQueryParams(params: ParamMap): ClaimsListState {
 /** For `router.navigate(..., { queryParams })`: null removes a key, so defaults and empty filters stay out of the URL. */
 export function toQueryParams(state: ClaimsListState): Params {
   return {
-    [KEYS.status]: state.statuses.length > 0 ? state.statuses : null,
-    [KEYS.dateFrom]: state.dateFrom,
-    [KEYS.dateTo]: state.dateTo,
-    [KEYS.handler]: state.assignedHandler,
-    [KEYS.cause]: state.causeOfLossCode,
-    [KEYS.search]: state.search,
-    [KEYS.page]: state.page === DEFAULT_LIST_STATE.page ? null : state.page,
-    [KEYS.pageSize]: state.pageSize === DEFAULT_LIST_STATE.pageSize ? null : state.pageSize,
+    [QUERY_PARAM_KEYS.status]: state.statuses.length > 0 ? state.statuses : null,
+    [QUERY_PARAM_KEYS.dateFrom]: state.dateFrom,
+    [QUERY_PARAM_KEYS.dateTo]: state.dateTo,
+    [QUERY_PARAM_KEYS.handler]: state.assignedHandler,
+    [QUERY_PARAM_KEYS.cause]: state.causeOfLossCode,
+    [QUERY_PARAM_KEYS.search]: state.search,
+    [QUERY_PARAM_KEYS.page]: state.page === DEFAULT_LIST_STATE.page ? null : state.page,
+    [QUERY_PARAM_KEYS.pageSize]:
+      state.pageSize === DEFAULT_LIST_STATE.pageSize ? null : state.pageSize,
   };
 }
 
 /** Whether any filter (not paging) differs from the defaults. */
 export function isFiltered(state: ClaimsListState): boolean {
-  return (
-    state.statuses.length > 0 ||
-    [state.dateFrom, state.dateTo, state.assignedHandler, state.causeOfLossCode, state.search].some(
-      (v) => v !== null,
-    )
-  );
+  return !sameFilters(state, DEFAULT_LIST_STATE);
 }
+
+/** Whether two filter sets are the same (paging ignored). */
+export function sameFilters(a: ClaimsListFilters, b: ClaimsListFilters): boolean {
+  return FILTER_KEYS.every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
+}
+
+const FILTER_KEYS: readonly (keyof ClaimsListFilters)[] = [
+  'statuses',
+  'dateFrom',
+  'dateTo',
+  'assignedHandler',
+  'causeOfLossCode',
+  'search',
+];
 
 /** Any filter change returns to page 1 (spec 008 story 5). */
 export function withFilters(
@@ -122,7 +132,8 @@ function isoDateOrNull(value: string | null): string | null {
   return value !== null && fromIsoDate(value) !== null ? value : null;
 }
 
-function textOrNull(value: string | null): string | null {
+/** Trimmed text, or null when blank — how free-text filters are normalised everywhere. */
+export function textOrNull(value: string | null): string | null {
   const trimmed = value?.trim() ?? '';
   return trimmed === '' ? null : trimmed;
 }

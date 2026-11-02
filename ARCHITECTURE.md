@@ -194,7 +194,8 @@ Angular 22, standalone components, zoneless change detection, signals for state.
 - **`shared/`** — pure domain helpers that deliberately mirror backend rules so the UI and API can't
   disagree (`authorityTier` = `ReserveAuthority.GetTier`, `isInForce` = BR-C-02's UTC-day check,
   role permissions = the backend's role checks), `applyServerErrors` for mapping FluentValidation
-  paths onto reactive forms, and small UI pieces.
+  paths onto reactive forms, and small UI pieces. Loss dates display as their **UTC** calendar day
+  (`calendarDay` pipe) because that is the day the API filters and checks in-force against.
 - **`features/`** — `claims-list`, `fnol-intake`, `claim-detail`.
 
 **"Lazy-loaded feature modules" (§11.4) without `NgModule`s.** Each feature is a lazy route bundle:

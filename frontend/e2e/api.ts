@@ -1,11 +1,11 @@
 import { APIRequestContext } from '@playwright/test';
 
-/** Fixed Demo User ids (ADR-0010) — mirrors src/app/core/auth/demo-users.ts. */
-export const DEMO_USER_IDS = {
-  handler: '00000000-0000-0000-0003-000000000001',
-  supervisor: '00000000-0000-0000-0003-000000000002',
-  manager: '00000000-0000-0000-0003-000000000003',
-} as const;
+import { DEMO_USERS, Role } from '../src/app/core/auth/demo-users';
+
+/** Fixed Demo User ids (ADR-0010), from the app's single source of truth. */
+export const DEMO_USER_IDS = Object.fromEntries(
+  DEMO_USERS.map((u) => [u.role, u.userId]),
+) as Record<Role, string>;
 
 export interface SeededClaim {
   claimId: string;

@@ -52,8 +52,11 @@ Scaffold `/frontend` on current stable Angular with standalone components and la
   - The shared authority-indicator component and confirm dialog — Slice I (FNOL step 3) and Slice J.
 - `statusColour(status)` (story 11) is `claimStatusToken(status)`: it returns the CSS custom property
   name (`--status-open`), with the colours themselves defined once in `styles.scss`.
-- Dates need no helper: `DatePipe` renders in the browser's local zone and `Date.toISOString()` is
-  the wire format (UTC, which the API's `DateTimeOffset` accepts).
+- Dates (corrected in Slice H): timestamps go on the wire as `Date.toISOString()`. Two helpers
+  turned out to be needed: `shared/domain/iso-date.ts` for `YYYY-MM-DD` calendar dates (DateOnly)
+  built from a datepicker's *local* fields, and `shared/ui/calendar-day.pipe.ts`, which displays a
+  loss date as its **UTC** calendar day — the day the API filters (§11.1 date range) and checks
+  in-force (BR-C-02) against, so the displayed day can't contradict either.
 - Migrations "on start" (story 12) run as a one-shot EF migration bundle container before the API
   starts, keeping the API itself free of startup migrations (CLAUDE.md).
 
